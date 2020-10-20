@@ -1,0 +1,53 @@
+{
+	"name": "io.shitsploit.desktop",
+	"version": "0.9.7",
+	"description": "Desktop Client For Sploit",
+	"author": {
+		"name": "Gaming Gurus",
+		"email": "skidlamer@mail.com"
+	},
+	"repository": {
+		"url": "https://github.com/vibedivide/shitsploit-client-release.git",
+		"type": "git"
+	},
+	"homepage": "https://skidlamer.github.io/",
+	"license": "BSD-3-Clause",
+	"main": "app/main.js",
+	"scripts": {
+		"start": "electron .",
+		"pack": "electron-builder --dir",
+		"dist": "electron-builder -w",
+		"dist:linux": "electron-builder --linux",
+		"dist:mac": "electron-builder --macos",
+		"dist:win": "electron-builder --windows",
+		"dist:win32": "electron-builder --windows --ia32",
+		"dist:wl": "electron-builder --windows --linux",
+		"dist:all": "electron-builder -wlm"
+	},
+	"build": {
+		"productName": "Shitsploit Client",
+		"appId": "io.shitsploit.desktop",
+		"copyright": "Copyright © 2020 Gaming Gurus",
+		"linux": {
+			"target": [
+				"AppImage",
+				"deb"
+			]
+		},
+		"mac": {
+			"category": "public.app-category.games",
+			"target": "zip"
+		}
+	},
+	"devDependencies": {
+		"electron": "^10.1.4",
+		"electron-builder": "^22.9.1"
+	},
+	"dependencies": {
+		"bytenode": "^1.1.6",
+		"electron-localshortcut": "^3.2.1",
+		"node-fetch": "^2.6.1",
+		"v8": "^0.1.0",
+		"v8-compile-cache": "^2.1.1"
+	}
+}
