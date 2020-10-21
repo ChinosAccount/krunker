@@ -1,5 +1,7 @@
 module.exports = async require => {
-	var electron = require('electron'),
+	var fs = require('fs'),
+		path = require('path'),
+		electron = require('electron'),
 		deep_handler = {
 			get(obj, prop){
 				if(prop == 'parent')return parent;
@@ -35,7 +37,6 @@ module.exports = async require => {
 		},
 		init_ui = async (title, footer, array) => {
 			var con = document.body.appendChild(document.createElement('div')),
-				con_vis = true,
 				titlebar = con.appendChild(document.createElement('div')),
 				movement = { tb: { value: false, } },
 				cons = con.appendChild(document.createElement('div')),
@@ -205,12 +206,11 @@ body {
 }
 
 .tab-desc {
-	position: absolute;
-	bottom: 32px;
-	height: 30px;
-	line-height: 17px;
 	text-align: center;
 	font-size: 12px;
+	width: 278px;
+	line-height: 34px;
+	height: 34px;
 }
 
 .ver {
@@ -402,7 +402,7 @@ body {
 	});
 	
 	var interval = setInterval(() => {
-		if(!document.body)return; else clearInterval(interval);
+		if(!document.body || !document.head)return; else clearInterval(interval);
 		
 		init_ui('Shitsploit', 'Press [F1] or [C] to toggle menu', [{
 			name: 'Main',
@@ -611,11 +611,14 @@ body {
 				},
 				key: 'unset',
 			},{
+				name: 'Reload UI',
+				type: 'function_inline',
+				val: _ => electron.ipcRenderer.send('reload_cheat'),
+				key: 'unset',
+			},{
 				name: 'Open CSS folder',
 				type: 'function_inline',
-				val(){
-					electron.shell.openItem(values.folders.css);
-				},
+				val: _ => electron.shell.openItem(values.folders.css),
 				key: 'unset',
 			},{
 				name: 'Open JS folder',
@@ -646,5 +649,18 @@ body {
 				key: 'unset',
 			}],
 		}]);
+		
+		// custom css
+		var load_css = [
+				...fs.readdirSync(values.folders.gui_css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([
+					fs.readFileSync(path.join(values.folders.gui_css, file_name), 'utf8')
+				], { type: 'text/css' }))),
+			].map(blob => '@import url("' + blob + '");').join('\n'),
+			css_tag = document.head.appendChild(document.createElement('link')),
+			css_url = window.URL.createObjectURL(new window.Blob([ load_css ], { type: 'text/css' }));
+		
+		css_tag.href = css_url;
+		css_tag.rel = 'stylesheet';	
+		css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 	});
 }

@@ -16,6 +16,7 @@ var fs = require('fs'),
 		folders: {
 			sploit: sploit_folder,
 			css: path.join(sploit_folder, 'css'),
+			gui_css: path.join(sploit_folder, 'gui_css'),
 			js: path.join(sploit_folder, 'js'),
 			swap: path.join(sploit_folder, 'swap'),
 		},
@@ -54,9 +55,9 @@ var fs = require('fs'),
 		},
 	},
 	html = {
-		splash: '<html><head><meta charset="utf8"><title>Krunker</title><style>body{margin:0;background:#fff0}.splash-wrapper{z-index:1;background:#fff no-repeat center fixed;background-size:cover;background-image:url("https://kru2.sys32.dev/client/splash.jpg?ts=' + Date.now() + '");border:6px solid #0003;width:-webkit-fill-available;height:-webkit-fill-available}@font-face{font-family:GameFont;src:url(https://kru2.sys32.dev/static/krunker.ttf)}.g{outline:0;font-family:GameFont;font-size:13px;user-select:none;color:#fff;text-shadow:-1px -1px 0 #202020,1px -1px 0 #202020,-1px 1px 0 #202020,1px 1px 0 #202020,-2px -2px 0 #202020,2px -2px 0 #202020,-2px 2px 0 #202020,2px 2px 0 #202020;margin:0}a{color:#49f}a:hover{color:#7bf}.status{position:absolute;bottom:3px;left:10px;line-height:13px}.version{position:absolute;color:#fff;bottom:3px;right:10px;line-height:13px}.close{position:absolute;top:6px;right:6px;background:#0003;width:34px;height:18px;padding-left:6px;color:#fff;text-align:center;line-height:16px;user-select:none;cursor:pointer}.close:hover{top:0;right:0;width:46px;height:24px;line-height:28px;background:#a22;padding:0}</style></head><body><div class="splash-wrapper"><div class="close" onclick="window.close()">🞩</div><div class="g status"><p>Loading...</p></div><div class="g version"><p>Shitsploit v' + values.version + '</p></div></div></body></html>',
+		splash: '<html><head><meta charset="utf8"><title>Krunker</title><style>body{margin:0;background:#fff0}.splash-wrapper{z-index:1;background:#fff no-repeat center fixed;background-size:cover;background-image:url("https://kru2.sys32.dev/client/splash.jpg?ts=' + Date.now() + '");border:6px solid #0003;width:-webkit-fill-available;height:-webkit-fill-available}@font-face{font-family:GameFont;src:url(https://kru2.sys32.dev/static/krunker.ttf)}.g{outline:0;font-family:GameFont;font-size:13px;user-select:none;color:#fff;text-shadow:-1px -1px 0 #202020,1px -1px 0 #202020,-1px 1px 0 #202020,1px 1px 0 #202020,-2px -2px 0 #202020,2px -2px 0 #202020,-2px 2px 0 #202020,2px 2px 0 #202020;margin:0}a{color:#49f}a:hover{color:#7bf}.status{position:absolute;bottom:3px;left:10px;line-height:13px}.version{position:absolute;color:#fff;bottom:3px;right:10px;line-height:13px}.close{position:absolute;top:6px;right:6px;background:#0003;width:34px;height:18px;padding-left:6px;color:#fff;text-align:center;line-height:16px;user-select:none;cursor:pointer}.close:hover{top:0;right:0;width:46px;height:24px;line-height:28px;background:#a22;padding:0}</style></head><body><div class="splash-wrapper"><div class="close" onclick="window.close()">🞩</div><div class="g status"><p>Loading...</p></div><div class="g version"><p>Shitsploit v' + values.version + '</p></div></div><script></script></body></html>',
 		ui: '<html><head><meta charset="utf8"><title>Krunker</title></head><body></body></html>',
-		prompt: '<html><style type="text/css">html,body{padding: 0px;overflow: hidden;margin: 0px;}@font-face{font-family: "GameFont";src: url("https://kru2.sys32.dev/static/krunker.ttf");}*{outline: none;font-family: "GameFont";color: #353535;user-select: none;}#prompt_menu{background-color: #fff;text-align: center;padding: 10px;position: absolute;left: 0;right: 0;border-radius: 5px;-webkit-box-shadow: 0px 7px 0px 0px #a6a6a6;-moz-box-shadow: 0px 7px 0px 0px #a6a6a6;}#promptText{word-wrap: break-word;}input{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}select{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}.action{color: #fff !important;margin-right: 5px;margin-left: 5px;background-color: #2196F3;padding: 6px;font-size: 12px;display: inline-block;cursor: pointer;border-radius: 3px;}.action:active{background-color: #666;}.line_spacing{padding-bottom: 12px;}</style><head></head><body><div id="prompt_menu"><div class="line_spacing"><a id="promptText">Question</a></div><div id="type_frame" class="line_spacing"><input id="prompt_input" placeholder="Enter Input"><br></div><div class="line_spacing"><div class="action submit">Submit</div><div class="action cancel">Cancel</div></div></div></body></html>'
+		prompt: question => '<html><style type="text/css">html,body{padding: 0px;overflow: hidden;margin: 0px;}@font-face{font-family: "GameFont";src: url("https://kru2.sys32.dev/static/krunker.ttf");}*{outline: none;font-family: "GameFont";color: #353535;user-select: none;}#prompt_menu{background-color: #fff;text-align: center;padding: 10px;position: absolute;left: 0;right: 0;border-radius: 5px;-webkit-box-shadow: 0px 7px 0px 0px #a6a6a6;-moz-box-shadow: 0px 7px 0px 0px #a6a6a6;}#promptText{word-wrap: break-word;}input{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}select{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}.action{color: #fff !important;margin-right: 5px;margin-left: 5px;background-color: #2196F3;padding: 6px;font-size: 12px;display: inline-block;cursor: pointer;border-radius: 3px;}.action:active{background-color: #666;}.line_spacing{padding-bottom: 12px;}</style><head></head><body><div id="prompt_menu"><div class="line_spacing"><a id="promptText">' + question + '</a></div><div id="type_frame" class="line_spacing"><input id="prompt_input" placeholder="Enter Input"><br></div><div class="line_spacing"><div class="action submit">Submit</div><div class="action cancel">Cancel</div></div></div></body></html>'
 	},
 	sizes = {
 		splash: {
@@ -130,7 +131,7 @@ var fs = require('fs'),
 					},
 				});
 				
-				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(html.prompt));
+				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(html.prompt(opt.data)));
 				
 				wins.prompt.webContents.on('did-finish-load', () => {
 					if(values.consts.ss_dev_debug)wins.prompt.webContents.openDevTools({ mode: 'undocked' });
@@ -154,6 +155,7 @@ var fs = require('fs'),
 				center: true,
 				resizable: false,
 				shadow: false,
+				show: false,
 				webPreferences: {
 					nodeIntegration: true
 				},
@@ -180,7 +182,8 @@ var fs = require('fs'),
 				fetcht(5000, ['https://kru2.sys32.dev/client/updates.json?ts=' + Date.now()]).then(res => res.json()).then(async updates => {
 					updates.latest.major = updates.latest.major.length == 3 ? updates.latest.major + '.0' : updates.latest.major
 					
-					if(!updates.latest.working)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
+					// !updates.latest.working
+					if(true)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
 					else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, ''))){ // not the latest major version
 						var installer_url = updates.latest.installers[os.type()];
 						
@@ -208,15 +211,12 @@ var fs = require('fs'),
 									
 									var process,
 										execute = () => {
-										try{ process = require('child_process').spawn(file_path, {
-											detached: true,
-											stdio: ['ignore']
-										}) }catch(err){ return setTimeout(execute, 1000) }
+											try{ process = require('child_process').spawn(file_path, { detached: true, stdio: ['ignore'] }) }catch(err){ return setTimeout(execute, 1000) }
 										
-										// quit if there was no error
-										process.unref();
-										electron.app.quit();
-									}
+											// quit if there was no error
+											process.unref();
+											electron.app.quit();
+										};
 									
 									setTimeout(execute, 1500);
 								});
@@ -227,9 +227,7 @@ var fs = require('fs'),
 						} }
 						
 						return;
-					// not the latest patch
-					}else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.patch.replace(/\D/g, '')))note = 'Consider updating to the latest client patch <a href="' + updates.latest.url + '">here</a>';
-					else note = 'Client is up-to-date';
+					} else note = 'Client is up-to-date';
 					
 					init.main();
 				}).catch(err => (note = 'Error showing splash: ' + err.message, init.main()));
@@ -414,7 +412,7 @@ var fs = require('fs'),
 			wins.viewer.once('closed', () => wins.viewer = null);
 		},
 		cheat(){
-			var conf = {
+			wins.sploit = new electron.BrowserWindow({
 				...sizes.cheat,
 				x: wins.game.getPosition()[0] + 50,
 				y: wins.game.getPosition()[1] + (wins.game.getSize()[1] / 2) - (328 / 2),
@@ -424,33 +422,15 @@ var fs = require('fs'),
 				movable: true,
 				transparent: false,
 				shadow: false,
+				show: false,
 				webPreferences: {
 					nodeIntegration: true,
 					enableRemoteModule: true,
 					preload: path.join(values.consts.app_dir, 'ui.js'),
 				},
-			};
-			
-			// fix alwaysontop again
-			if(os.type != 'Linux')conf.parent = wins.game;
-			
-			wins.sploit = new electron.BrowserWindow(conf);
-			wins.sploit.setMenu(null);
-			
-			// linux fix
-			if(os.type == 'Linux')wins.sploit.setAlwaysOnTop(true);
-			
-			electron.ipcMain.on('con_vis', (event, data) => {
-				if(!wins.sploit)return;
-				
-				wins.sploit.setIgnoreMouseEvents(!data);
-				
-				wins.sploit.setOpacity(data ? (wins.sploit.focused ? 1 : 0.75) : 0);
-			});
-			
-			electron.ipcMain.on('relaunch', (event, data) => {
-				electron.app.relaunch();
-				electron.app.quit();
+				parent: os.type != 'Linux' ? wins.game : void'',
+				alwaysOnTop: os.type == 'Linux' ? true : void'',
+				menu: null,
 			});
 			
 			wins.sploit.on('maximize', () => {
@@ -473,6 +453,8 @@ var fs = require('fs'),
 			});
 			
 			wins.sploit.loadURL('data:text/html,' + encodeURIComponent(html.ui));
+			
+			wins.sploit.on('ready-to-show', () => wins.sploit.show());
 			
 			wins.sploit.webContents.on('did-finish-load', () => {
 				if(!wins.sploit.webContents.isDevToolsOpened() && values.consts.ss_dev_debug)wins.sploit.webContents.openDevTools({ mode: 'undocked' });
@@ -680,16 +662,20 @@ electron.app.once('ready', async () => {
 		wins.sploit.setResizable(true);
 		wins.sploit.setSize(sizes.cheat.width, values.ui_visible ? sizes.cheat.height: 40);
 		wins.sploit.setResizable(false);
+		
+		// wins.sploit.setIgnoreMouseEvents(!values.ui_visible);
 	});
 	
 	electron.ipcMain.on('open_path', (event, data) => electron.shell.openPath(data));
 	electron.ipcMain.on('open_external', (event, data) => electron.shell.openExternal(data));
+	electron.ipcMain.on('relaunch', (event, data) => (electron.app.relaunch(), electron.app.quit()));
+	electron.ipcMain.on('reload_cheat', () => wins.sploit && wins.sploit.reload());
 	
 	electron.ipcMain.handle('sync_values', () => JSON.stringify(values));
 	electron.ipcMain.on('update_values', (event, data) => {
 		values = JSON.parse(data);
 		
-		if(wins.sploit)wins.sploit.webContents.send('receive_values', JSON.stringify(values));
+		if(wins.cheat)wins.cheat.webContents.send('receive_values', JSON.stringify(values));
 		if(wins.game)wins.game.webContents.send('receive_values', JSON.stringify(values));
 		
 		update_config();

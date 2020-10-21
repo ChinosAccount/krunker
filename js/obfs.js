@@ -69,7 +69,7 @@ module.exports = {
 				if(options.obio){
 					var consts_wrapped = mod.wrap(fs.readFileSync(path.join(__dirname, 'consts.js'), 'utf8'));
 					
-					fs.writeFileSync(file_obfus, jsob.obfuscate('var ss_requires = {}, ss_require = file => ss_requires[file], ce = { exports: {} }, ex = {};' + consts_wrapped.replace(/.$/, '') + '(ex, require, ce, __filename, __dirname); ss_requires["./consts.jsc"] = ce.exports || ex;'
+					fs.writeFileSync(file_obfus, jsob.obfuscate('var ss_requires = {}, ss_require = file => ss_requires[file], ce = { exports: {} }, ex = {};' + consts_wrapped.replace(/.$/, '') + '(ex, require("module").createRequire(__dirname), ce, __filename, __dirname); ss_requires["./consts.jsc"] = ce.exports || ex;'
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));
 				}
 			}catch(err){

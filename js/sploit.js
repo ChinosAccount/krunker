@@ -106,17 +106,7 @@ var fs = require('fs'),
 				
 				return (Math.asin(h / dst) * ((y1 > y2) ? -1 : 1));
 			},
-			round: (n, r) => Math.round(n * Math.pow(10, r || 0)) / Math.pow(10, r || 0),
-			playerLookAt(target, offset = 0){
-				var twoPI = Math.PI * 2,
-					yVal = target.pos.y + offset,
-					yDire = cheat.getDir(cheat.player.z||cheat.controls.object.position.z, cheat.player.x||cheat.controls.object.position.x, target.pos.z, target.pos.x),
-					xDire = cheat.getXDire(cheat.player.x||cheat.controls.object.position.x, cheat.player.y||cheat.controls.object.position.y, cheat.player.z||cheat.controls.object.position.z, target.pos.x, yVal, target.pos.z),
-					xD = cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27 )) % twoPI, 3),
-					yD = cheat.round(yDire % twoPI, 3);
-				
-				return { x: xD, y: yD }
-			},
+			round: (n, r) => Math.round(n * Math.pow(10, r)) / Math.pow(10, r),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
@@ -177,9 +167,12 @@ var fs = require('fs'),
 					else if(cheat.controls && (!cheat.player || !cheat.player.active) && /click to play/gi.test(intxt))cheat.controls.toggle(true);
 				}
 			},
-			procInputs(target, thisArg, argArray){
-				var data = argArray[0],
-					keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
+				// $1{\n const [input, game, recon, lock] = arguments, me = this, key = {
+				// +"};$2")
+			procInputs(data){
+				if(!cheat.controls || !cheat.player)return;
+				
+				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
 								
 				// skid bhop
@@ -189,7 +182,7 @@ var fs = require('fs'),
 						if(cheat.controls.keys[cheat.controls.binds.jumpKey.val])cheat.controls.didPressed[cheat.controls.binds.jumpKey.val] = 1;
 						
 						if(document.activeElement.nodeName != 'INPUT' && config.game.bhop == 'keyslide' && cheat.inputs.Space || config.game.bhop == 'autoslide'){
-							if(cheat.player[cheat.vars.yVel] < -0.02 && cheat.player.canSlide) {
+							if(cheat.player[cheat.vars.yVel] < -0.02 && cheat.player.canSlide){
 								setTimeout(() => cheat.controls.keys[cheat.controls.binds.crouchKey.val] = 0, 325);
 								cheat.controls.keys[cheat.controls.binds.crouchKey.val] = 1;
 							}
@@ -202,8 +195,13 @@ var fs = require('fs'),
 				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
-					var rot = cheat.playerLookAt(cheat.target, cheat.target.isAI ? cheat.game.AI.ais[0].dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
-						dist = cheat.player.pos.distanceTo(cheat.target.pos);
+					var twoPI = Math.PI * 2,
+						yVal = cheat.target.pos.y + (cheat.target.isAI ? cheat.game.AI.ais[0].dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
+						yDire = cheat.getDir(cheat.player.z || cheat.controls.object.position.z, cheat.player.x || cheat.controls.object.position.x, cheat.target.pos.z, cheat.target.pos.x),
+						xDire = cheat.getXDire(cheat.player.x || cheat.controls.object.position.x, cheat.player.y || cheat.controls.object.position.y, cheat.player.z || cheat.controls.object.position.z, cheat.target.pos.x, yVal, cheat.target.pos.z),
+						xD = cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27 )) % twoPI, 3),
+						yD = cheat.round(yDire % twoPI, 3),
+						rot = { x: xD, y: yD };
 					
 					switch(config.aim.status){
 						case'silent':
@@ -213,7 +211,7 @@ var fs = require('fs'),
 								data[keys.scope] = 1
 								
 								// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
-								if(!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && dist <= 18))data[keys.shoot] = 1;
+								if(!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18))data[keys.shoot] = 1;
 							}
 							
 							// wait until we are shooting to look at enemy
@@ -235,6 +233,8 @@ var fs = require('fs'),
 								data[keys.shoot] = 0
 								data[keys.scope] = 0
 							}else{
+								var dist = cheat.player.pos.distanceTo(cheat.target.pos);
+								
 								data[keys.scope] = 1
 								
 								// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
@@ -262,7 +262,7 @@ var fs = require('fs'),
 					case'down': data[keys.xdir] = 10e3 * -1; break
 				}
 				
-				return Reflect.apply(target, thisArg, [data, argArray[1], argArray[2], argArray[3]]);
+				// return Reflect.apply(target, thisArg, [data, argArray[1], argArray[2], argArray[3]]);
 			},
 			process(){ try{
 				if(!cheat.game)return;
@@ -287,13 +287,13 @@ var fs = require('fs'),
 				
 				if(!cheat.controls || !cheat.world || !cheat.player)return;
 				
-				if(cheat.player[cheat.vars.procInputs] && !cheat.player[cheat.symbols.procInputs_hooked]){
+				/*if(cheat.player[cheat.vars.procInputs] && !cheat.player[cheat.symbols.procInputs_hooked]){
 					// procInputs hook
 					
 					cheat.player[cheat.symbols.org_procInputs] = cheat.player[cheat.vars.procInputs];
 					
 					cheat.player[cheat.symbols.procInputs_hooked] = cheat.player[cheat.vars.procInputs] = new Proxy(cheat.player[cheat.symbols.org_procInputs], { apply: cheat.procInputs });
-				}
+				}*/
 				
 				cheat.game.players.list.forEach(ent => {
 					if(!ent.pos2D)Object.defineProperties(ent, {
@@ -561,7 +561,7 @@ var fs = require('fs'),
 				['inView', /this\['list']\[\w+]\['(\w+)']\['visible']=!0x1,this\['list']\[\w+]\['(\w+)']=!0x1;/, 2],
 				['camera', /\['(\w+)'\]=new q\['Object3D'\]\(\),this\['\1'\]/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
-				['procInputs', /this\['(\w+)']=function\((\w+),(\w+),\w+,\w+\){(this)\['recon']/, 1],
+				// ['procInputs', /this\['(\w+)']=function\((\w+),(\w+),\w+,\w+\){(this)\['recon']/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
 				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
@@ -589,12 +589,16 @@ var fs = require('fs'),
 				[/(this\['backgroundScene']=)/, 'ss_data.world = this, $1'],
 				[/((\w+)\['exports']\['enableHttps']=\w+\['exports']\['isProd'])/g, 'ss_data.server_vars = $2.exports, $1'],
 				[/((\w+)\['exports']\['keyboardMap']=)/, ' ss_data.utils = $2.exports; $1'],
+				
+				[/(this\['\w+']=function\(\w+,\w+,\w+,\w+\){)(this\['recon'])/, '$1 { ss_data.procInputs(...arguments) }; $2'],
+				
 				// have a proper interval for rendering
 				[/requestAnimFrame\(/g, 'ss_data.frame() && requestAnimFrame('],
 				// fix fps count
 				[/(\['push']\(\w+\),\w+=)(\w+\['length'])(,\w+&&0x)/, '$1 ~~(ss_data.game?.config?.deltaMlt * $2) $3'],
 				// billboard fix
 				[/(var \w+)=\(\w+\['exports']\['isString']\(\w+\)\?v:'.*?'\)/, '$1 = "Your Ad Here"'],
+				
 				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ss_data.exports = $2.c; ss_data.modules = $2.m;/'],
 			]),
 			font: 'Inconsolata, monospace',
@@ -607,6 +611,7 @@ var fs = require('fs'),
 				config(){ return config },
 				player(){ return cheat.player ? cheat.player : { weapon: { pierce: false } } },
 				target(){ return cheat.target ? cheat.target : { isAI : false } },
+				procInputs: null,
 				frame(){
 					cheat.game = cheat.storage.game;
 					cheat.world = cheat.storage.world;
@@ -645,6 +650,8 @@ var fs = require('fs'),
 		// pass storage object to game
 		cheat.patches.set(/^/, '(ss_data => { ss_data.info("injected", window); return ');
 		cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + ')');
+		
+		cheat.storage.procInputs = cheat.procInputs;
 		
 		electron.ipcRenderer.on('esc', () => {
 			document.exitPointerLock();
