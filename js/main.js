@@ -41,6 +41,7 @@ var fs = require('fs'),
 				wireframe: false,
 				speed: false,
 				auto_respawn: false,
+				delt: false,
 			}, aim: {
 				status: 'off',
 				target: 'head',
@@ -55,7 +56,7 @@ var fs = require('fs'),
 		},
 	},
 	html = {
-		splash: '<html><head><meta charset="utf8"><title>Krunker</title><style>body{margin:0;background:#fff0}.splash-wrapper{z-index:1;background:#fff no-repeat center fixed;background-size:cover;background-image:url("https://kru2.sys32.dev/client/splash.jpg?ts=' + Date.now() + '");border:6px solid #0003;width:-webkit-fill-available;height:-webkit-fill-available}@font-face{font-family:GameFont;src:url(https://kru2.sys32.dev/static/krunker.ttf)}.g{outline:0;font-family:GameFont;font-size:13px;user-select:none;color:#fff;text-shadow:-1px -1px 0 #202020,1px -1px 0 #202020,-1px 1px 0 #202020,1px 1px 0 #202020,-2px -2px 0 #202020,2px -2px 0 #202020,-2px 2px 0 #202020,2px 2px 0 #202020;margin:0}a{color:#49f}a:hover{color:#7bf}.status{position:absolute;bottom:3px;left:10px;line-height:13px}.version{position:absolute;color:#fff;bottom:3px;right:10px;line-height:13px}.close{position:absolute;top:6px;right:6px;background:#0003;width:34px;height:18px;padding-left:6px;color:#fff;text-align:center;line-height:16px;user-select:none;cursor:pointer}.close:hover{top:0;right:0;width:46px;height:24px;line-height:28px;background:#a22;padding:0}</style></head><body><div class="splash-wrapper"><div class="close" onclick="window.close()">🞩</div><div class="g status"><p>Loading...</p></div><div class="g version"><p>Shitsploit v' + values.version + '</p></div></div><script></script></body></html>',
+		splash: '<html><head><meta charset="utf8"><title>Krunker</title><style>body{margin:0;background:#fff0}.splash-wrapper{z-index:1;background:#fff no-repeat center fixed;background-size:cover;background-image:url("https://kru2.sys32.dev/client/splash.jpg?ts=' + Date.now() + '");border:6px solid #0003;width:-webkit-fill-available;height:-webkit-fill-available}@font-face{font-family:GameFont;src:url(https://kru2.sys32.dev/static/krunker.ttf)}.g{outline:0;font-family:GameFont;font-size:12px;user-select:none;color:#fff;text-shadow:-1px -1px 0 #202020,1px -1px 0 #202020,-1px 1px 0 #202020,1px 1px 0 #202020,-2px -2px 0 #202020,2px -2px 0 #202020,-2px 2px 0 #202020,2px 2px 0 #202020;margin:0}a{color:#49f}a:hover{color:#7bf}.status{position:absolute;bottom:3px;left:10px;line-height:13px}.version{position:absolute;color:#fff;bottom:3px;right:10px;line-height:13px}.close{position:absolute;top:6px;right:6px;background:#0003;width:34px;height:18px;padding-left:6px;color:#fff;text-align:center;line-height:16px;user-select:none;cursor:pointer}.close:hover{top:0;right:0;width:46px;height:24px;line-height:28px;background:#a22;padding:0}</style></head><body><div class="splash-wrapper"><div class="close" onclick="window.close()">🞩</div><div class="g status"><p>Loading...</p></div><div class="g version"><p>Shitsploit v' + values.version + '</p></div></div></body></html>',
 		ui: '<html><head><meta charset="utf8"><title>Krunker</title></head><body></body></html>',
 		prompt: question => '<html><style type="text/css">html,body{padding: 0px;overflow: hidden;margin: 0px;}@font-face{font-family: "GameFont";src: url("https://kru2.sys32.dev/static/krunker.ttf");}*{outline: none;font-family: "GameFont";color: #353535;user-select: none;}#prompt_menu{background-color: #fff;text-align: center;padding: 10px;position: absolute;left: 0;right: 0;border-radius: 5px;-webkit-box-shadow: 0px 7px 0px 0px #a6a6a6;-moz-box-shadow: 0px 7px 0px 0px #a6a6a6;}#promptText{word-wrap: break-word;}input{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}select{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}.action{color: #fff !important;margin-right: 5px;margin-left: 5px;background-color: #2196F3;padding: 6px;font-size: 12px;display: inline-block;cursor: pointer;border-radius: 3px;}.action:active{background-color: #666;}.line_spacing{padding-bottom: 12px;}</style><head></head><body><div id="prompt_menu"><div class="line_spacing"><a id="promptText">' + question + '</a></div><div id="type_frame" class="line_spacing"><input id="prompt_input" placeholder="Enter Input"><br></div><div class="line_spacing"><div class="action submit">Submit</div><div class="action cancel">Cancel</div></div></div></body></html>'
 	},
@@ -70,7 +71,7 @@ var fs = require('fs'),
 		},
 		cheat: {
 			width: 404,
-			height: 328,
+			height: 366,
 		},
 	},
 	valid_json = data => { try { return JSON.parse(data) } catch(err) { return false } },
@@ -87,10 +88,7 @@ var fs = require('fs'),
 				duration--;
 				
 				if(!duration)return resolve() && clearInterval(interval);
-				else splash.webContents.send('splash_info', [
-					...messages,
-					'Client closing in ' + duration,
-				]);
+				else wins.splash.message(...messages, 'Client closing in ' + duration);
 			},
 			interval = setInterval(msg, 1000);
 		
@@ -161,6 +159,18 @@ var fs = require('fs'),
 				},
 			});
 			
+			wins.splash.message = (...args) => wins.splash.webContents.executeJavaScript(`
+				document.querySelector('.status').innerHTML = '${args.map(str => '<p>' + str + '</p>').join('')}';
+				
+				document.querySelectorAll('a[href]').forEach(link => {
+					link.addEventListener('click', event => {
+						event.preventDefault();
+						
+						require('electron').shell.openExternal(link.href);
+					});
+				});
+			`);
+			
 			wins.splash.setMenu(null);
 			wins.splash.loadURL('data:text/html,' + encodeURIComponent(html.splash));
 			
@@ -169,30 +179,23 @@ var fs = require('fs'),
 			wins.splash.webContents.once('did-finish-load', async () => {
 				if(values.consts.ss_dev_debug)wins.splash.webContents.openDevTools({ mode: 'undocked' });
 				
-				var note,
-					exit_and_visit = err => {
-						if(err)console.error(err);
-						
-						splash_countdown(wins.splash, ['Error during setup, visiting downloads instead'], 5).then(electron.app.quit);
-						
-						electron.shell.openExternal(updates.latest.url);
-					};
+				var note, exit_and_visit = err => {
+					if(err)console.error(err);
+					
+					splash_countdown(wins.splash, ['Error during setup, visiting downloads instead'], 5).then(electron.app.quit);
+					
+					electron.shell.openExternal(updates.latest.url);
+				};
 				 
 				// update check
 				fetcht(5000, ['https://kru2.sys32.dev/client/updates.json?ts=' + Date.now()]).then(res => res.json()).then(async updates => {
-					updates.latest.major = updates.latest.major.length == 3 ? updates.latest.major + '.0' : updates.latest.major
-					
-					// !updates.latest.working
-					if(true)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
+					if(!updates.latest.working)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
 					else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, ''))){ // not the latest major version
 						var installer_url = updates.latest.installers[os.type()];
 						
 						// if no setup is available
-						if(installer_url == 'none'){
-							electron.shell.openExternal(updates.latest.url);
-							setTimeout(electron.app.quit, 2000);
-						}else { try{ // setup available
-							wins.splash.webContents.send('splash_info', ['Downloading latest setup..']);
+						if(installer_url == 'none')electron.shell.openExternal(updates.latest.url), setTimeout(electron.app.quit, 2000); else { try {
+							wins.splash.message('Downloading latest setup..');
 							
 							var dir = path.join(os.tmpdir(), 'shitsploit'),
 								file_path = path.join( dir, 'setup_' + Math.random().toString(36).substr(2) +  Date.now() + path.extname(installer_url) );
@@ -207,7 +210,7 @@ var fs = require('fs'),
 								res.body.on('error', exit_and_visit);
 								
 								write_stream.on('finish', () => {
-									wins.splash.webContents.send('splash_info', ['Finished downloading, starting..']);
+									wins.splash.message('Finished downloading, starting..');
 									
 									var process,
 										execute = () => {
@@ -227,7 +230,10 @@ var fs = require('fs'),
 						} }
 						
 						return;
-					} else note = 'Client is up-to-date';
+					} else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, '')))note = 'Consider downloading the latest client patch'
+					else note = 'Client is up-to-date';
+					
+					wins.splash.message(note, 'Loading...');
 					
 					init.main();
 				}).catch(err => (note = 'Error showing splash: ' + err.message, init.main()));
@@ -297,7 +303,7 @@ var fs = require('fs'),
 					key: 'F11',
 					press: _ => {
 						wins.game.setFullScreen(!wins.game.isFullScreen());
-						cheat.config.client.fullscreen = 'full';
+						values.config.client.fullscreen = 'full';
 					}
 				},
 				devTools: {
@@ -312,11 +318,9 @@ var fs = require('fs'),
 			}).forEach(entry => shortcut.register(wins.game, entry[1].key, entry[1].press));
 		},
 		editor(){
-			var size = wins.game.getSize();
-			
 			wins.editor = new electron.BrowserWindow({
-				width: size[0] * values.consts.windowResize.editor,
-				height: size[1] * values.consts.windowResize.editor,
+				width: wins.game.getSize()[0] * values.consts.window_resize.editor,
+				height: wins.game.getSize()[1] * values.consts.window_resize.editor,
 				show: false,
 				darkTheme: true,
 				center: true,
@@ -347,11 +351,9 @@ var fs = require('fs'),
 			});			
 		},
 		social(url){
-			var size = wins.game.getSize();
-			
 			wins.social = new electron.BrowserWindow({
-				width: size[0] * values.consts.windowResize.social,
-				height: size[1] * values.consts.windowResize.social,
+				width: wins.game.getSize()[0] * values.consts.window_resize.social,
+				height: wins.game.getSize()[1] * values.consts.window_resize.social,
 				show: false,
 				darkTheme: true,
 				center: true,
@@ -384,8 +386,8 @@ var fs = require('fs'),
 		viewer(url){
 			var size = wins.game.getSize();
 			wins.viewer = new electron.BrowserWindow({
-				width: size[0] * values.consts.windowResize.viewer,
-				height: size[1] * values.consts.windowResize.viewer,
+				width: size[0] * values.consts.window_resize.viewer,
+				height: size[1] * values.consts.window_resize.viewer,
 				show: false,
 				darkTheme: true,
 				center: true,
@@ -424,28 +426,21 @@ var fs = require('fs'),
 				shadow: false,
 				show: false,
 				webPreferences: {
-					nodeIntegration: true,
-					enableRemoteModule: true,
 					preload: path.join(values.consts.app_dir, 'ui.js'),
 				},
 				parent: os.type != 'Linux' ? wins.game : void'',
 				alwaysOnTop: os.type == 'Linux' ? true : void'',
 				menu: null,
+				title: 'Shitsploit UI',
 			});
 			
 			wins.sploit.on('maximize', () => {
 				wins.sploit.unmaximize()
 			});
 
-			wins.sploit.on('focus', () => {
-				wins.sploit.focused = true;
-				wins.sploit.setOpacity(1);
-			});
+			wins.sploit.on('focus', () => wins.sploit.setOpacity(1));
 			
-			wins.sploit.on('blur', () => {
-				wins.sploit.focused = false;
-				wins.sploit.setOpacity(0.75);
-			});
+			wins.sploit.on('blur', () => wins.sploit.setOpacity(0.75));
 			
 			wins.sploit.once('closed', () => {
 				wins.sploit = null;
@@ -649,8 +644,19 @@ electron.app.once('ready', async () => {
 	init.resource_swapper();
 	
 	electron.protocol.registerFileProtocol('media', (request, callback) => callback(request.url.replace('media:///', '')));
-	electron.ipcMain.on('quit', () => electron.app.quit());
+	electron.protocol.registerStringProtocol('asset', (request, callback) => {
+		var [match, content_type, data] = decodeURIComponent(request.url).match(/asset:(?:{(.*)},)(?:{(.*)})/);
+		
+		callback({
+			statusCode: 200,
+			headers: {
+				'content-type': content_type,
+			},
+			data: Buffer.from(data, 'base64').toString('utf8'),
+		});
+	});
 	
+	electron.ipcMain.on('quit', () => electron.app.quit());
 	electron.ipcMain.on('keydown', (event, data) => wins.sploit && wins.sploit.webContents.send('keydown', data));
 	electron.ipcMain.on('keyup', (event, data) => wins.sploit && wins.sploit.webContents.send('keyup', data));
 	
@@ -687,9 +693,7 @@ electron.app.on('activate', () => {
 });
 
 electron.app.once('before-quit', () => {
-	try{
-		if(wins.game)shortcut.unregisterAll();
-	}catch(err){}
+	if(wins.game)try{ shortcut.unregisterAll() }catch(err){};
 	
 	Object.keys(wins).forEach(label => {
 		if(!wins[label])return;
@@ -701,6 +705,4 @@ electron.app.once('before-quit', () => {
 
 electron.app.on('window-all-closed', () => electron.app.quit());
 
-process.on('uncaughtException', err => {
-	console.error('caught:\n' + util.format(err));
-});
+process.on('uncaughtException', err => console.error('caught:\n' + util.format(err)));

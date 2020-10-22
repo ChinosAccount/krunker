@@ -3,6 +3,7 @@ var fs = require('fs'),
 	electron = require('electron'),
 	cheat = {},
 	THREE = {},
+	gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}',
 	uhook = (orig_func, handler) => {
 		var func = function(){
 			return Reflect.apply(handler, this, [orig_func, this, arguments]);
@@ -166,15 +167,17 @@ var fs = require('fs'),
 					if(/(disconnected|game is full|banned|kicked)/gi.test(intxt))cheat.find_match()
 					else if(cheat.controls && (!cheat.player || !cheat.player.active) && /click to play/gi.test(intxt))cheat.controls.toggle(true);
 				}
+				
+				document.querySelectorAll('#streamContainer, #aHolder, #endAHolderL, #endAHolderR').forEach(node => node.style.display = 'none');
+				
+				document.querySelectorAll('.streamItem').forEach(node => node.children[0].src = '');
 			},
-				// $1{\n const [input, game, recon, lock] = arguments, me = this, key = {
-				// +"};$2")
 			procInputs(data){
 				if(!cheat.controls || !cheat.player)return;
 				
 				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
-								
+				
 				// skid bhop
 				if(config.game.bhop != 'off'){
 					if(cheat.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide'){
@@ -191,17 +194,20 @@ var fs = require('fs'),
 				}
 				
 				// auto reload, currentAmmo set earlier
-				if(cheat.player && !cheat.player.currentAmmo && config.aim.auto_reload)data[keys.reload] = 1
+				if(cheat.player && !cheat.player.currentAmmo && config.aim.auto_reload)data[keys.reload] = 1;
 				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
 					var twoPI = Math.PI * 2,
-						yVal = cheat.target.pos.y + (cheat.target.isAI ? cheat.game.AI.ais[0].dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
-						yDire = cheat.getDir(cheat.player.z || cheat.controls.object.position.z, cheat.player.x || cheat.controls.object.position.x, cheat.target.pos.z, cheat.target.pos.x),
-						xDire = cheat.getXDire(cheat.player.x || cheat.controls.object.position.x, cheat.player.y || cheat.controls.object.position.y, cheat.player.z || cheat.controls.object.position.z, cheat.target.pos.x, yVal, cheat.target.pos.z),
+						yVal = cheat.target.y + (1 - cheat.target[cheat.vars.crouchVal] * 3),
+						// (cheat.target.isAI ? cheat.game.AI.ais[0].dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
+						yDire = cheat.getDir(cheat.player.z || cheat.controls.object.position.z, cheat.player.x || cheat.controls.object.position.x, cheat.target.z, cheat.target.x),
+						xDire = cheat.getXDire(cheat.player.x || cheat.controls.object.position.x, cheat.player.y || cheat.controls.object.position.y, cheat.player.z || cheat.controls.object.position.z, cheat.target.x, yVal, cheat.target.z),
 						xD = cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27 )) % twoPI, 3),
 						yD = cheat.round(yDire % twoPI, 3),
 						rot = { x: xD, y: yD };
+					
+					data[keys.delta] += 1;
 					
 					switch(config.aim.status){
 						case'silent':
@@ -256,13 +262,13 @@ var fs = require('fs'),
 					data[keys.ydir] = cheat.controls.object.rotation.y * 1000
 				}
 				
+				if(config.game.delt)data[keys.delta] = -1;
+				
 				if((!cheat.player[cheat.vars.didShoot] && !data[keys.shoot] || cheat.player[cheat.vars.reloadTimer]) && config.game.pitch_mod && config.game.pitch_mod != 'off')switch(config.game.pitch_mod){
 					case'random': cheat.ys = !cheat.ys; data[keys.xdir] = 10e3 * (cheat.ys ? 1 : -1); break
 					case'up': data[keys.xdir] = 10e3 * 1; break
 					case'down': data[keys.xdir] = 10e3 * -1; break
 				}
-				
-				// return Reflect.apply(target, thisArg, [data, argArray[1], argArray[2], argArray[3]]);
 			},
 			process(){ try{
 				if(!cheat.game)return;
@@ -273,27 +279,12 @@ var fs = require('fs'),
 				cheat.controls.object.rotation.y -= cheat.inputs.ArrowRight ? 0.00675 : 0;
 				cheat.controls.object.rotation.y += cheat.inputs.ArrowLeft ? 0.00675 : 0;
 				
-				// cheat.controls.object.rotation.y += rot.y
-				
-				
 				cheat.server_vars.kickTimer = Infinity;
-				
-				document.querySelectorAll('#streamContainer, #aHolder, #endAHolderL, #endAHolderR').forEach(node => node.style.display = 'none');
-				
-				document.querySelectorAll('.streamItem').forEach(node => node.children[0].src = '');
 				
 				cheat.game.config.deltaMlt = cheat.game.config.deltaMlt = config.game.speed ? 1.05 : 1;
 				cheat.game.config.thirdPerson = config.game.thirdperson ? true : false;
 				
 				if(!cheat.controls || !cheat.world || !cheat.player)return;
-				
-				/*if(cheat.player[cheat.vars.procInputs] && !cheat.player[cheat.symbols.procInputs_hooked]){
-					// procInputs hook
-					
-					cheat.player[cheat.symbols.org_procInputs] = cheat.player[cheat.vars.procInputs];
-					
-					cheat.player[cheat.symbols.procInputs_hooked] = cheat.player[cheat.vars.procInputs] = new Proxy(cheat.player[cheat.symbols.org_procInputs], { apply: cheat.procInputs });
-				}*/
 				
 				cheat.game.players.list.forEach(ent => {
 					if(!ent.pos2D)Object.defineProperties(ent, {
@@ -312,24 +303,21 @@ var fs = require('fs'),
 							applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
 							clone(){return Object.assign({}, this)},
 						})},
-						// prevent coughing noises
-						coughTimer: { get: _ => Number.MAX_SAFE_INTEGER },
-						// define additional stuff
 						pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 } },
-						objInstances: { get: _ => ent[cheat.vars.objInstances] },
-						isActive: { get: _ => ent.x != null && cheat.ctx && ent.objInstances && ent.health > 0 ? true : false },
-						isEnemy: { get: _ => ent.team != null && ent.team != null && ent.team == cheat.player.team ? false : true },
-						[cheat.symbols.canSee]: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
-						[cheat.symbols.inFrustrum]: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
-						[cheat.symbols.isRisk]: { get: _ => ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30 },
-						currentAmmo: { get: _ => ent[cheat.vars.ammos] ? ent[cheat.vars.ammos][ent[cheat.vars.weaponIndex]] : 1 },
-						
+						canSee: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+						inFrustrum: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
 					});
+					
+					ent.isActive = ent.x != null && cheat.ctx && ent.objInstances && ent.health > 0;
+					ent.isEnemy = !ent.team || ent.team != cheat.player.team;
+					ent.isRisk = ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30;
+					ent.objInstances = ent[cheat.vars.objInstances];
+					ent.currentAmmo = ent[cheat.vars.ammos] ? ent[cheat.vars.ammos][ent[cheat.vars.weaponIndex]] : 1;
 					
 					if(!ent.isActive)return;
 					
 					// we are at fastest tick so we can do this
-					ent.objInstances.visible = true;
+					if(ent.objInstances)ent.objInstances.visible = true;
 					ent[cheat.vars.inView] = cheat.hide_nametags ? false : config.esp.nametags ? true : ent[cheat.vars.inView];
 					
 					if(ent.weapon && !ent.weapon[cheat.symbols.org_zoom])ent.weapon[cheat.symbols.org_zoom] = ent.weapon.zoom;
@@ -417,24 +405,24 @@ var fs = require('fs'),
 							clone(){return Object.assign({}, this)},
 						};
 						
-						ent[cheat.symbols.canSee] = cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
-						ent[cheat.symbols.inFrustrum] = cheat.world.frustum.containsPoint(ent.pos);
+						ent.canSee = cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
+						ent.inFrustrum = cheat.world.frustum.containsPoint(ent.pos);
 						ent.pos2D = ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 };
 					});
 					
-					targets = ais.filter(ent => ent.pos2D && ent[cheat.symbols.canSee] && (config.aim.frustrum_check ? ent[cheat.symbols.inFrustrum] : true));
+					targets = ais.filter(ent => ent.pos2D && ent.canSee && (config.aim.frustrum_check ? ent.inFrustrum : true));
 					
-				}else targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent.pos2D && ent.isActive && ent[cheat.symbols.canSee] && ent.isEnemy && (config.aim.frustrum_check ? ent[cheat.symbols.inFrustrum] : true));
+				}else targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent.pos2D && ent.isActive && ent.canSee && ent.isEnemy && (config.aim.frustrum_check ? ent.inFrustrum : true));
 				
 				cheat.target = targets.sort((ent_1, ent_2) => ent_1.pos2D.distanceTo(cheat.center_vec) - ent_1.pos2D.distanceTo(cheat.center_vec))[0];
 				
-				cheat.game.players.list.filter(ent => ent.isActive && ent[cheat.symbols.inFrustrum] && cheat.player.pos && !ent[cheat.vars.isYou]).forEach(ent => {
+				cheat.game.players.list.filter(ent => ent.isActive && ent.inFrustrum && cheat.player.pos && !ent[cheat.vars.isYou]).forEach(ent => {
 					var src_pos = cheat.wrld2scrn(ent.pos.clone()),
 						src_pos_crouch = cheat.wrld2scrn(ent.pos.clone(), ent.height - ent[cheat.vars.crouchVal] * 3),
 						esp_width = ~~((src_pos.y - cheat.wrld2scrn(ent.pos.clone(), ent.height).y) * 0.6),
 						esp_height = src_pos.y - src_pos_crouch.y,
 						esp_box_y = src_pos.y - esp_height,
-						cham_color = ent.isEnemy ? ent[cheat.symbols.isRisk] ? '#F70' : '#F00' : '#0F0',
+						cham_color = ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0',
 						cham_color_full = parseInt(cham_color.substr(1).split('').map(e => e+e).join(''), 16); // turn #FFF into #FFFFFF
 					
 					// teammate = green, enemy = red, risk + enemy = orange
@@ -521,7 +509,7 @@ var fs = require('fs'),
 								['#BBB', '['],
 								['#FFF', (ent.weapon.ammo ? ent.currentAmmo : 'N') + '/' + (ent.weapon.ammo ? ent.weapon.ammo : 'A') ],
 								['#BBB', ']']],
-							[['#BBB', 'Risk: '], [(ent[cheat.symbols.isRisk] ? '#0F0' : '#F00'), ent[cheat.symbols.isRisk]]],
+							[['#BBB', 'Risk: '], [(ent.isRisk ? '#0F0' : '#F00'), ent.isRisk]],
 							[['#BBB', '['], ['#FFF', (player_dist / 10).toFixed() + 'm'], ['#BBB', ']']],
 						].forEach((line, text_index) => {
 							var texts = line.filter(entry => entry),
@@ -561,7 +549,6 @@ var fs = require('fs'),
 				['inView', /this\['list']\[\w+]\['(\w+)']\['visible']=!0x1,this\['list']\[\w+]\['(\w+)']=!0x1;/, 2],
 				['camera', /\['(\w+)'\]=new q\['Object3D'\]\(\),this\['\1'\]/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
-				// ['procInputs', /this\['(\w+)']=function\((\w+),(\w+),\w+,\w+\){(this)\['recon']/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
 				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
@@ -603,15 +590,11 @@ var fs = require('fs'),
 			]),
 			font: 'Inconsolata, monospace',
 			storage: {
-				game: 0,
-				world: 0,
-				utils: 0,
-				modules: [],
-				exports: [],
+				/*modules: [],
+				exports: [],*/
 				config(){ return config },
 				player(){ return cheat.player ? cheat.player : { weapon: { pierce: false } } },
 				target(){ return cheat.target ? cheat.target : { isAI : false } },
-				procInputs: null,
 				frame(){
 					cheat.game = cheat.storage.game;
 					cheat.world = cheat.storage.world;
@@ -619,8 +602,8 @@ var fs = require('fs'),
 					cheat.player = cheat.game ? cheat.game.players.list.find(player => player[cheat.vars.isYou]) : null;
 					cheat.controls = cheat.game ? cheat.game.controls : null;
 					cheat.utils = cheat.storage.utils;
-					cheat.modules = cheat.storage.modules;
-					cheat.exports = cheat.storage.exports;
+					/*cheat.modules = cheat.storage.modules;
+					cheat.exports = cheat.storage.exports;*/
 					
 					
 					
@@ -666,32 +649,6 @@ var fs = require('fs'),
 			if(!document || !document.head)return;	
 			else clearInterval(interval);	
 			
-			// css and js
-			var load_css = [
-					...fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([
-						fs.readFileSync(path.join(values.folders.css, file_name), 'utf8')
-					], { type: 'text/css' }))),
-				].map(blob => '@import url("' + blob + '");').join('\n'),
-				load_js = fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8'));
-			
-			// load js
-			load_js.forEach(data => {
-				var js_url = window.URL.createObjectURL(new window.Blob([ data ], { type: 'application/javascript' })),
-					js_tag = document.head.appendChild(document.createElement('script'));
-				
-				js_tag.src = js_url;
-				js_tag.addEventListener('load', () => window.URL.revokeObjectURL(js_url), js_tag.remove());
-			});
-			
-			// load css 
-			var css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ load_css ], { type: 'text/css' }));
-			
-			css_tag.href = css_url;
-			css_tag.rel = 'stylesheet';	
-			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
-			
-			
 			// load cheat font
 			new window.FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
 				family: 'Inconsolata',
@@ -713,6 +670,27 @@ var fs = require('fs'),
 				button.addEventListener('click', () => window.location.href = 'https://krunker.io');
 				button.innerHTML = 'Find game';
 			}, 50);
+			
+			// css and js
+			var load_css = fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");').join('\n'),
+				load_js = fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8'));
+			
+			// load js
+			load_js.forEach(data => {
+				var js_url = window.URL.createObjectURL(new window.Blob([ data ], { type: 'application/javascript' })),
+					js_tag = document.head.appendChild(document.createElement('script'));
+				
+				js_tag.src = js_url;
+				js_tag.addEventListener('load', () => window.URL.revokeObjectURL(js_url), js_tag.remove());
+			});
+			
+			// load css 
+			var css_tag = document.head.appendChild(document.createElement('link')),
+				css_url = window.URL.createObjectURL(new window.Blob([ load_css ], { type: 'text/css' }));
+			
+			css_tag.href = css_url;
+			css_tag.rel = 'stylesheet';	
+			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 		}catch(err){ console.log(err) } }, 50);
 	},
 	jstr = JSON.stringify,

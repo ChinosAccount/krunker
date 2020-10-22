@@ -9,7 +9,7 @@ if(!app_dir.match(/app$/g))app_dir = path.resolve(__dirname, '..', 'src', 'app')
 
 module.exports = {
 	isAMDCPU: require('os').cpus()[0].model.indexOf('AMD') > -1,
-	windowResize: {
+	window_resize: {
 		social: 0.8,
 		viewer: 0.6,
 		editor: 0.8,

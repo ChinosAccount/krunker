@@ -4,14 +4,11 @@ module.exports = async require => {
 		electron = require('electron'),
 		deep_handler = {
 			get(obj, prop){
-				if(prop == 'parent')return parent;
-				if(prop == 'key')return key;
-				
 				var ret = Reflect.get(obj, prop);
 				
 				return typeof ret == 'object' ? new Proxy(ret, deep_handler) : obj[prop];
 			},
-			set: function(obj, prop, value){
+			set(obj, prop, value){
 				var ret = Reflect.set(obj, prop, value);
 				
 				electron.ipcRenderer.send('update_values', JSON.stringify(values));
@@ -19,7 +16,8 @@ module.exports = async require => {
 				return ret
 			},
 		},
-		values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
+		values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler)),
+		gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}';
 	
 	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
 	
@@ -42,7 +40,7 @@ module.exports = async require => {
 				cons = con.appendChild(document.createElement('div')),
 				sidebar_con = cons.appendChild(document.createElement('div')),
 				tab_nodes = [],
-				url = window.URL.createObjectURL(new window.Blob([`
+				url = gen_asset('text/css', `
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata&display=swap');
 
 body {
@@ -220,41 +218,18 @@ body {
 	width: 60px;
 	line-height: 30px;
 	text-align: center;
-}`], { type: 'text/css' })),
-				style = document.head.appendChild(document.createElement('link'));
-			
-			style.setAttribute('rel', 'stylesheet');
-			style.setAttribute('href', url);
-
-			style.addEventListener('load', window.URL.revokeObjectURL(url));
-			
-			titlebar.innerHTML = title;
-			titlebar.className = 'bar bar-top';
-			
-			con.className = 'con';
-			cons.className = 'cons';
-			sidebar_con.className = 'sidebar-con';
-			
-			cheat.keybinds.push({
-				keycode: ['KeyC', 'F1'],
-				interact: () => electron.ipcRenderer.send('ui_visibility'),
-			});
-			
-			array.forEach((tab, index) => {
-				var tab_button = sidebar_con.appendChild(document.createElement('div')),
-					tab_ele = cons.appendChild(document.createElement('div'));
-				
-				tab_nodes.push(tab_ele);
-				
-				tab_button.className = 'tab-button',
-				tab_ele.className = 'content-con';
-				if(index > 0)tab_ele.style.display = 'none';
-				
-				tab_button.addEventListener('click', () => (tab_nodes.forEach(ele => ele.style.display = 'none'), tab_ele.removeAttribute('style')));
-				
-				tab_button.innerHTML = tab.name;
-				
-				tab.contents.forEach(control => { try{
+		}`),
+				style = document.head.appendChild(document.createElement('link')),
+				process_controls = (control, tab, tab_button, tab_ele) => {
+					if(control.type == 'nested_menu'){
+						control.tab_ele = cons.appendChild(document.createElement('div'));
+						tab_nodes.push(control.tab_ele);
+						control.tab_ele.className = 'content-con';
+						control.tab_ele.style.display = 'none';
+						
+						control.val.forEach(controle => process_controls(controle, tab, tab_button, control.tab_ele));
+					}
+					
 					var content = tab_ele.appendChild(document.createElement('div')),
 						content_name = document.createElement('div'); // append after stuff
 					
@@ -274,6 +249,10 @@ body {
 							case'function_inline':
 								control.val();
 								break
+							case'nested_menu':
+								tab_nodes.forEach(ele => ele.style.display = 'none');
+								control.tab_ele.removeAttribute('style');
+								break
 						}
 						control.update();
 					};
@@ -286,6 +265,19 @@ body {
 							case'bool_rot':
 								content_name.innerHTML = control.name + ': ' + control.vals[control.aval].display;
 								break
+							case'text':
+								break
+							case'text-small':
+								content_name.style['font-size'] = '12px';
+								break
+							case'text-bold':
+								content_name.style['font-weight'] = '600';
+								break
+							case'text-small-bold':
+								content_name.style['font-size'] = '12px';
+								content_name.style['font-weight'] = '600';
+								break
+
 						}
 					};
 					 
@@ -358,9 +350,40 @@ body {
 						interact: control.interact,
 					});
 					
-					
-					
 					cheat.ui_controls.push(control);
+				};
+			
+			style.setAttribute('rel', 'stylesheet');
+			style.setAttribute('href', url);
+			
+			titlebar.innerHTML = title;
+			titlebar.className = 'bar bar-top';
+			
+			con.className = 'con';
+			cons.className = 'cons';
+			sidebar_con.className = 'sidebar-con';
+			
+			cheat.keybinds.push({
+				keycode: ['KeyC', 'F1'],
+				interact: () => electron.ipcRenderer.send('ui_visibility'),
+			});
+			
+			array.forEach((tab, index) => {
+				var tab_button = sidebar_con.appendChild(document.createElement('div')),
+					tab_ele = cons.appendChild(document.createElement('div'));
+				
+				tab_nodes.push(tab_ele);
+				
+				tab_button.className = 'tab-button',
+				tab_ele.className = 'content-con';
+				if(index > 0)tab_ele.style.display = 'none';
+				
+				tab_button.addEventListener('click', () => (tab_nodes.forEach(ele => ele.style.display = 'none'), tab_ele.removeAttribute('style')));
+				
+				tab_button.innerHTML = tab.name;
+				
+				tab.contents.forEach(control => { try{
+					process_controls(control, tab, tab_button, tab_ele);
 				}catch(err){ console.error('Encountered error at %c' + control.name + ' (' + control.val + ')', 'color: #FFF', err) }});
 				
 				if(tab.bottom_text){
@@ -487,10 +510,25 @@ body {
 				val_get: _ => values.config.game.overlay,
 				val_set: v => values.config.game.overlay = v,
 				key: 8,
+			},{
+				name: 'S',
+				type: 'bool',
+				val_get: _ => values.config.game.delt,
+				val_set: v => values.config.game.delt = v,
+				key: 9,
 			}],
 		},{
 			name: 'Game',
 			contents: [{
+				name: 'Unlimited FPS',
+				type: 'bool',
+				val_get: _ => values.config.client.unlimited_fps,
+				val_set: v => {
+					values.config.client.unlimited_fps = v;
+					electron.ipcRenderer.send('relaunch');
+				},
+				key: 'unset',
+			},{
 				name: 'Wireframe',
 				type: 'bool',
 				val_get: _ => values.config.game.wireframe,
@@ -602,15 +640,6 @@ body {
 			name: 'Client',
 			bottom_text: 'Shitsploit by Gaming gurus',
 			contents: [{
-				name: 'Unlimited FPS',
-				type: 'bool',
-				val_get: _ => values.config.client.unlimited_fps,
-				val_set: v => {
-					values.config.client.unlimited_fps = v;
-					electron.ipcRenderer.send('relaunch');
-				},
-				key: 'unset',
-			},{
 				name: 'Reload UI',
 				type: 'function_inline',
 				val: _ => electron.ipcRenderer.send('reload_cheat'),
@@ -636,6 +665,26 @@ body {
 				val: _ => electron.ipcRenderer.send('open_external', 'https://skidlamer.github.io/'),
 				key: 'unset',
 			},{
+				name: 'Contributors',
+				type: 'nested_menu',
+				val: [{
+					name: 'Contributors:',
+					type: 'text-bold',
+				}, {
+					name: 'Shitsploit - Divide',
+					type: 'text-small',
+				}, {
+					name: 'Math stuff (lots more) - Skid Lamer',
+					type: 'text-small',
+				}, {
+					name: 'chonker1337 - chonker1337',
+					type: 'text-small',
+				}, {
+					name: 'Anyone claiming to "contribute" to the client and isnt listed here is lying to you',
+					type: 'text',
+				}],
+				key: 'unset',
+			},{
 				name: 'Reset settings',
 				type: 'function_inline',
 				val(){
@@ -651,16 +700,11 @@ body {
 		}]);
 		
 		// custom css
-		var load_css = [
-				...fs.readdirSync(values.folders.gui_css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([
-					fs.readFileSync(path.join(values.folders.gui_css, file_name), 'utf8')
-				], { type: 'text/css' }))),
-			].map(blob => '@import url("' + blob + '");').join('\n'),
+		var load_css = fs.readdirSync(values.folders.gui_css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => 'asset:{text/css},{' + btoa(fs.readFileSync(path.join(values.folders.gui_css, file_name), 'utf8')) + '}').map(blob => '@import url("' + blob + '");').join('\n'),
 			css_tag = document.head.appendChild(document.createElement('link')),
-			css_url = window.URL.createObjectURL(new window.Blob([ load_css ], { type: 'text/css' }));
+			css_url = 'asset:{text/css},{' + btoa('load_css') + '}';
 		
 		css_tag.href = css_url;
 		css_tag.rel = 'stylesheet';	
-		css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 	});
 }
