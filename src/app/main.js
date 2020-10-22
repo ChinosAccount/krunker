@@ -1,1 +1,6 @@
-require('bytenode'); var ob = require('path').resolve(__dirname, '..', '..', 'js/obfs.js'); if(require('fs').existsSync(ob)){ ob = require(ob); require(ob.o(ob.s2, ob.t2)) }else require(require('path').join(__dirname, 'main.jsc'));
+require('bytenode');
+var pa = require('path'), fs = require('fs'), ob = pa.resolve(__dirname, '..', '..', 'js/obfs.js');
+
+fs.existsSync(ob) ? require(ob).o('s2', 't2') : null;
+
+require(pa.join(__dirname, 'main.jsc'));

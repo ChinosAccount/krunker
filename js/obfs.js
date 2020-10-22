@@ -50,6 +50,10 @@ module.exports = {
 		}),
 	},
 	o(file_name, options = {}){ // obfuscate
+		if(file_name.constructor == String && module.exports[file_name])file_name = module.exports[file_name];
+		if(options.constructor == String)options = module.exports[options];
+		
+		
 		var options = Object.assign({
 				obio: false, // obfuscator.io module thing
 				obio_ops: {},

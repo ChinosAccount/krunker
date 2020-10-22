@@ -16,8 +16,7 @@ module.exports = async require => {
 				return ret
 			},
 		},
-		values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler)),
-		gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}';
+		values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
 	
 	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
 	
@@ -40,7 +39,7 @@ module.exports = async require => {
 				cons = con.appendChild(document.createElement('div')),
 				sidebar_con = cons.appendChild(document.createElement('div')),
 				tab_nodes = [],
-				url = gen_asset('text/css', `
+				url = window.URL.createObjectURL(new window.Blob([ `
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata&display=swap');
 
 body {
@@ -218,7 +217,7 @@ body {
 	width: 60px;
 	line-height: 30px;
 	text-align: center;
-		}`),
+		}` ], { type: 'text/css' })),
 				style = document.head.appendChild(document.createElement('link')),
 				process_controls = (control, tab, tab_button, tab_ele) => {
 					if(control.type == 'nested_menu'){
@@ -700,11 +699,12 @@ body {
 		}]);
 		
 		// custom css
-		var load_css = fs.readdirSync(values.folders.gui_css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => 'asset:{text/css},{' + btoa(fs.readFileSync(path.join(values.folders.gui_css, file_name), 'utf8')) + '}').map(blob => '@import url("' + blob + '");').join('\n'),
-			css_tag = document.head.appendChild(document.createElement('link')),
-			css_url = 'asset:{text/css},{' + btoa('load_css') + '}';
+		var load_css = fs.readdirSync(values.folders.gui_css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => 
+				window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.gui_css, file_name), 'utf8') ], { type: 'text/css' }))
+			).map(blob => '@import url("' + blob + '");').join('\n'),
+			css_tag = document.head.appendChild(document.createElement('link'));
 		
-		css_tag.href = css_url;
+		css_tag.href = window.URL.createObjectURL(new Blob([ load_css ], { type: 'text/css' }));
 		css_tag.rel = 'stylesheet';	
 	});
 }

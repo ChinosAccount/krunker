@@ -120,29 +120,46 @@ var fs = require('fs'),
 					resizable: false,
 					movable: false,
 					transparent: true,
-					darkTheme: true,
 					center: true,
 					webPreferences: {
-						nodeIntegration: true,
-						enableRemoteModule: false,
-						preload: path.join(values.consts.app_dir, 'prompt.js'),
+						nodeIntegration: true,	
 					},
 				});
-				
-				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(html.prompt(opt.data)));
 				
 				wins.prompt.webContents.on('did-finish-load', () => {
 					if(values.consts.ss_dev_debug)wins.prompt.webContents.openDevTools({ mode: 'undocked' });
 					
 					wins.prompt.show();
-					wins.prompt.webContents.send('text', JSON.stringify(opt));
+					wins.prompt.webContents.on('prompt_size', (event, data) => wins.prompt.setBounds({ height: data }));
+					wins.prompt.on('closed', () => (event.returnValue = response, wins.prompt = null));
+					
+					wins.prompt.webContents.executeJavaScript(`
+						var electron = require('electron');
+						
+						switch('${opt.type}'){
+							case'select':
+								type_frame.innerHTML = '<select id="prompt_input"><option value=" ">Homepage</option><option value="social.html">Social</option><option value="viewer.html">Viewer</option><option value="editor.html">Editor</option></select><br>'
+								break;
+							case'login':
+								type_frame.innerHTML = '<input id="userInput" type="text" placeholder="Username" style="margin-bottom: 10px"><input id="passInput" type="password" placeholder="Password"><br>';
+								break;
+							case'text':
+							default:
+								type_frame.innerHTML = '<input id="prompt_input" placeholder="Enter Input"><br>';
+								break;
+						}
+						
+						electron.ipcRenderer.send('prompt_size', document.querySelector('#prompt_menu').getBoundingClientRect().height + 7);
+						
+						document.querySelector('.cancel').addEventListener('click', () => window.close());
+						document.querySelector('.submit').addEventListener('click', () => (electron.ipcRenderer.send('prompt-response', document.querySelector('#prompt_input') ? document.querySelector('#prompt_input').value : { user: document.querySelector('#userInput').value, pass: document.querySelector('#passInput').value }), window.close()));
+					`);
 				});
 				
-				wins.prompt.webContents.on('prompt_size', (event, data) => wins.prompt.setBounds({ height: data }));
-				
-				wins.prompt.on('closed', () => (event.returnValue = response, wins.prompt = null))
+				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(html.prompt(opt.data)));
 				
 			});
+			
 			electron.ipcMain.on('prompt-response', (event, args) => response = args == '' ? null : args);			
 		},
 		splash(){
@@ -154,9 +171,6 @@ var fs = require('fs'),
 				resizable: false,
 				shadow: false,
 				show: false,
-				webPreferences: {
-					nodeIntegration: true
-				},
 			});
 			
 			wins.splash.message = (...args) => wins.splash.webContents.executeJavaScript(`
@@ -171,13 +185,11 @@ var fs = require('fs'),
 				});
 			`);
 			
-			wins.splash.setMenu(null);
-			wins.splash.loadURL('data:text/html,' + encodeURIComponent(html.splash));
-			
 			wins.splash.once('ready-to-show', () => wins.splash.show());
 			
-			wins.splash.webContents.once('did-finish-load', async () => {
+			wins.splash.webContents.once('did-finish-load', () => {
 				if(values.consts.ss_dev_debug)wins.splash.webContents.openDevTools({ mode: 'undocked' });
+				wins.splash.show();
 				
 				var note, exit_and_visit = err => {
 					if(err)console.error(err);
@@ -212,14 +224,13 @@ var fs = require('fs'),
 								write_stream.on('finish', () => {
 									wins.splash.message('Finished downloading, starting..');
 									
-									var process,
-										execute = () => {
-											try{ process = require('child_process').spawn(file_path, { detached: true, stdio: ['ignore'] }) }catch(err){ return setTimeout(execute, 1000) }
-										
-											// quit if there was no error
-											process.unref();
-											electron.app.quit();
-										};
+									var process, execute = () => {
+										try{ process = require('child_process').spawn(file_path, { detached: true, stdio: ['ignore'] }) }catch(err){ return setTimeout(execute, 1000) }
+									
+										// quit if there was no error
+										process.unref();
+										electron.app.quit();
+									};
 									
 									setTimeout(execute, 1500);
 								});
@@ -238,21 +249,19 @@ var fs = require('fs'),
 					init.main();
 				}).catch(err => (note = 'Error showing splash: ' + err.message, init.main()));
 			});
+			
+			wins.splash.loadURL('data:text/html,' + encodeURIComponent(html.splash));
 		},
 		main(){
 			wins.game = new electron.BrowserWindow({
 				width: electron.screen.getPrimaryDisplay().size.width * 0.85,
 				height: electron.screen.getPrimaryDisplay().size.height * 0.75,
 				show: false,
-				darkTheme: true,
 				center: true,
+				title: 'Shitsploit Desktop',
 				webPreferences: {
-					nodeIntegration: false,
-					enableRemoteModule: true,
-					webSecurity: true,
 					preload: path.join(values.consts.app_dir, 'preload.js'),
 				},
-				title: 'Shitsploit Desktop',
 			});
 			
 			// load cheat only once
@@ -286,36 +295,28 @@ var fs = require('fs'),
 			
 			wins.game.on('blur', () => wins.game.webContents.send('esc'));
 			
-			Object.entries({
-				escape: {
-					key: 'Esc',
-					press: _ => wins.game.webContents.send('esc')
-				},
-				quit: {
-					key: 'Alt+F4',
-					press: _ => electron.app.quit()
-				},
-				refresh: {
-					key: 'F5',
-					press: _ => wins.game.webContents.reloadIgnoringCache()
-				},
-				fullscreen: {
-					key: 'F11',
-					press: _ => {
-						wins.game.setFullScreen(!wins.game.isFullScreen());
-						values.config.client.fullscreen = 'full';
-					}
-				},
-				devTools: {
-					key: 'F12',
-					press: _ => {
-						if(!values.consts.ss_dev)return;
-						wins.game.webContents.isDevToolsOpened() 
-						? wins.game.webContents.closeDevTools() 
-						: wins.game.webContents.openDevTools({ mode: 'undocked' });
-					}
-				},
-			}).forEach(entry => shortcut.register(wins.game, entry[1].key, entry[1].press));
+			[{
+				key: 'Esc',
+				press: () => wins.game.webContents.send('esc')
+			}, {
+				key: 'Alt+F4',
+				press: () => electron.app.quit()
+			}, {
+				key: 'F5',
+				press: () => wins.game.webContents.reloadIgnoringCache()
+			}, {
+				key: 'F11',
+				press: () => {
+					wins.game.setFullScreen(!wins.game.isFullScreen());
+					values.config.client.fullscreen = 'full';
+				}
+			}, {
+				key: ['F12', 'Ctrl+Shift+I'],
+				press: () => {
+					if(!values.consts.ss_dev)return;
+					wins.game.webContents.isDevToolsOpened() ? wins.game.webContents.closeDevTools() : wins.game.webContents.openDevTools({ mode: 'undocked' });
+				}
+			}].forEach(st => shortcut.register(wins.game, st.key, st.press));
 		},
 		editor(){
 			wins.editor = new electron.BrowserWindow({
@@ -425,9 +426,7 @@ var fs = require('fs'),
 				transparent: false,
 				shadow: false,
 				show: false,
-				webPreferences: {
-					preload: path.join(values.consts.app_dir, 'ui.js'),
-				},
+				webPreferences: { nodeIntegration: true },
 				parent: os.type != 'Linux' ? wins.game : void'',
 				alwaysOnTop: os.type == 'Linux' ? true : void'',
 				menu: null,
@@ -453,6 +452,19 @@ var fs = require('fs'),
 			
 			wins.sploit.webContents.on('did-finish-load', () => {
 				if(!wins.sploit.webContents.isDevToolsOpened() && values.consts.ss_dev_debug)wins.sploit.webContents.openDevTools({ mode: 'undocked' });
+				
+				wins.sploit.webContents.executeJavaScript(`
+					require('bytenode');
+					
+					var path = require('path'), values = ${JSON.stringify(values)};
+					
+					if(values.consts.obfs_exist){
+						var obfs = require(values.consts.obfs),
+							ui_ob = obfs.o('ui.js', obfs.t4);
+						
+						require(values.consts.ss_dev ? path.join(values.consts.js_dir, 'ui.js') : path.join(values.consts.app_dir, 'ui.jsc'))(require);
+					}else require(path.join(values.consts.app_dir, 'ui.jsc'))(require);
+				`);
 			});
 		},
 		resource_swapper(){
@@ -644,17 +656,6 @@ electron.app.once('ready', async () => {
 	init.resource_swapper();
 	
 	electron.protocol.registerFileProtocol('media', (request, callback) => callback(request.url.replace('media:///', '')));
-	electron.protocol.registerStringProtocol('asset', (request, callback) => {
-		var [match, content_type, data] = decodeURIComponent(request.url).match(/asset:(?:{(.*)},)(?:{(.*)})/);
-		
-		callback({
-			statusCode: 200,
-			headers: {
-				'content-type': content_type,
-			},
-			data: Buffer.from(data, 'base64').toString('utf8'),
-		});
-	});
 	
 	electron.ipcMain.on('quit', () => electron.app.quit());
 	electron.ipcMain.on('keydown', (event, data) => wins.sploit && wins.sploit.webContents.send('keydown', data));
@@ -690,17 +691,6 @@ electron.app.once('ready', async () => {
 
 electron.app.on('activate', () => {
 	if(!wins.game && (!wins.splash || wins.splash.isDestroyed()))init_splash();
-});
-
-electron.app.once('before-quit', () => {
-	if(wins.game)try{ shortcut.unregisterAll() }catch(err){};
-	
-	Object.keys(wins).forEach(label => {
-		if(!wins[label])return;
-		
-		wins[label].removeAllListeners('closed');
-		wins[label].close();
-	});
 });
 
 electron.app.on('window-all-closed', () => electron.app.quit());

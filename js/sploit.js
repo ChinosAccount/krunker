@@ -52,8 +52,9 @@ var fs = require('fs'),
 				}
 			}),
 			key_press: (keycode, keyname, keycode2, keyud) => document.dispatchEvent(new KeyboardEvent(keyud,{altKey:false,bubbles:true,cancelBubble:false,cancelable:true,charCode:0,code:keyname,composed:true,ctrlKey:false,currentTarget:null,defaultPrevented:true,detail:0,eventPhase:0,explicitOriginalTarget:document.body,isComposing:false,isTrusted:true,key:keyname,keyCode:keycode,layerX:0,layerY:0,location:0,metaKey:false,originalTarget:document.body,rangeOffset:0,rangeParent:null,repeat:false,returnValue:false,shiftKey:false,srcElement:document.body,target:document.body,timeStamp:Date.now(),type:keyud,view:parent,which:keycode})),
-			log(){
-				if(values.consts.ss_dev || values.consts.ss_dev_debug)console.log('%cShitsploit', 'background: #27F; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...arguments);
+			log(...args){
+				if(values.consts.ss_dev)console.log('%cShitsploit', 'background: #27F; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
+				else console.log('%cDEBUG', 'background: #F72; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
 				return true;
 			},
 			wrld2scrn(pos, aY = 0){
@@ -262,7 +263,7 @@ var fs = require('fs'),
 					data[keys.ydir] = cheat.controls.object.rotation.y * 1000
 				}
 				
-				if(config.game.delt)data[keys.delta] = -1;
+				if(config.game.delt)data[keys.delta] = 0;
 				
 				if((!cheat.player[cheat.vars.didShoot] && !data[keys.shoot] || cheat.player[cheat.vars.reloadTimer]) && config.game.pitch_mod && config.game.pitch_mod != 'off')switch(config.game.pitch_mod){
 					case'random': cheat.ys = !cheat.ys; data[keys.xdir] = 10e3 * (cheat.ys ? 1 : -1); break
