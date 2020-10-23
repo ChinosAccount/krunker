@@ -22,16 +22,8 @@ module.exports = async require => {
 	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
 	
 	var cheat = {
-			inputs: [],
 			keybinds: [],
 			ui_controls: [],
-			randoms: new Proxy({}, {
-				get(target, prop){
-					if(!target[prop])target[prop] = [...Array(16)].map(() => Math.random().toString(36)[2]).join('').replace(/(\d|\s)/, 'V').toLowerCase().substr(0, 6);
-					
-					return target[prop];
-				}
-			}),
 		},
 		init_ui = async (title, footer, array) => {
 			var con = document.body.appendChild(document.createElement('div')),

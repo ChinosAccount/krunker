@@ -512,6 +512,8 @@ var fs = require('fs'),
 	process.exit(0);
 }));
 
+process.env.NODE_ENV = 'production';
+
 // quit if we have not got the lock
 if(!electron.app.requestSingleInstanceLock())return electron.app.quit();
 

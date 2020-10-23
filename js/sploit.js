@@ -2,6 +2,7 @@
 var fs = require('fs'),
 	path = require('path'),
 	electron = require('electron'),
+	Buffer = require('buffer').Buffer,
 	cheat = {},
 	THREE = {},
 	gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}',
@@ -592,6 +593,8 @@ var fs = require('fs'),
 				// billboard fix
 				[/(var \w+)=\(\w+\['exports']\['isString']\(\w+\)\?v:'.*?'\)/, '$1 = "Your Ad Here"'],
 				
+				[/^/, 'ss_data.info("injected");'],
+				
 				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ss_data.exports = $2.c; ss_data.modules = $2.m;/'],
 			]),
 			font: 'Inconsolata, monospace',
@@ -618,15 +621,16 @@ var fs = require('fs'),
 					
 					return true;
 				},
-				info(data, win){
+				info(data){
 					switch(data){
 						case'injected':
 							
 							cheat.log('injected to game');
 							
-							// hide storage object now that it has been assigned
-							cheat.log('hiding: ' + cheat.objects.storage + '.' + cheat.randoms.storage);
-							win[cheat.objects.storage][cheat.randoms.storage] = void 0;
+							// hide vrtInit object now that it has been assigned
+							
+							cheat.log('hiding: ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit, window[cheat.objects.vrtInit][cheat.randoms.vrtInit]);
+							window[cheat.objects.vrtInit][cheat.randoms.vrtInit] = void 0;
 							
 							break
 					}
@@ -635,10 +639,6 @@ var fs = require('fs'),
 		};
 		
 		setInterval(cheat.process_interval, 1000);
-		
-		// pass storage object to game
-		// cheat.patches.set(/^/, '(ss_data => { ss_data.info("injected", window); return ');
-		// cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + '())');
 		
 		cheat.storage.procInputs = cheat.procInputs;
 		
@@ -735,7 +735,7 @@ var fs = require('fs'),
 					
 					if(cheat.vars_not_found.length)console.log('%c(shitsploit)\nCould not find: ' + cheat.vars_not_found.join(', '), 'color:#16D');
 					
-					code = 'console.trace("hi"); var run_code = "' + Buffer.from(code).toString('base64') + '"; ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit + '(run_code, arguments, arguments.callee.caller.arguments);'
+					code = 'var run_code = "' + Buffer.from(code).toString('base64') + '"; ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit + '(run_code, arguments, arguments.callee.caller.arguments);'
 					window[cheat.objects.vrtInit][cheat.randoms.vrtInit] = (...args) => cheat.vrtInit(...args);
 					
 					return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
