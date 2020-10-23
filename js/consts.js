@@ -1,3 +1,4 @@
+'use strict';
 var electron = require('electron'),
 	path = require('path'),
 	fs = require('fs'),

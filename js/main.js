@@ -1,3 +1,7 @@
+'use strict';
+
+global.require = require;
+
 require('v8-compile-cache');
 var fs = require('fs'),
 	os = require('os'),
@@ -8,6 +12,21 @@ var fs = require('fs'),
 	electron = require('electron'),
 	shortcut = require('electron-localshortcut'),
 	sploit_folder = path.join(os.homedir(), 'Documents', 'shitsploit'),
+	setup_win = options => {
+		var conf = { center: true, acceptFirstMouse: true, title: 'Shitsploit Client', ...options, show: false },
+			win = new electron.BrowserWindow(conf);
+		
+		win.once('ready-to-show', () => {
+			if(values.consts.ss_dev_debug)win.webContents.openDevTools({ mode: 'undocked' });
+			win.show();
+		});
+		
+		win.on('page-title-updated', event => event.preventDefault());
+		
+		win.on('closed', () =>  win = null);
+		
+		return win;
+	},
 	values = {
 		version: electron.app.getVersion(),
 		src_dir: fs.existsSync(path.resolve(__dirname, 'main.js')) ? __dirname : path.join(__dirname, 'res'),
@@ -39,9 +58,7 @@ var fs = require('fs'),
 				autoreload: false,
 				overlay: false,
 				wireframe: false,
-				speed: false,
 				auto_respawn: false,
-				delt: false,
 			}, aim: {
 				status: 'off',
 				target: 'head',
@@ -109,12 +126,15 @@ var fs = require('fs'),
 		prompt(){
 			var response;
 			electron.ipcMain.on('prompt', (event, opt) => {
+				if(!wins.game)return;
+				
 				response = null;
 				
 				wins.prompt = new electron.BrowserWindow({
 					...sizes.prompt,
  					show: false,
 					frame: false,
+					modal: true,
 					skipTaskbar: true,
 					alwaysOnTop: true,
 					resizable: false,
@@ -124,6 +144,7 @@ var fs = require('fs'),
 					webPreferences: {
 						nodeIntegration: true,	
 					},
+					parent: wins.game,
 				});
 				
 				wins.prompt.webContents.on('did-finish-load', () => {
@@ -163,14 +184,14 @@ var fs = require('fs'),
 			electron.ipcMain.on('prompt-response', (event, args) => response = args == '' ? null : args);			
 		},
 		splash(){
-			wins.splash = new electron.BrowserWindow({
+			wins.splash = setup_win({
 				...sizes.splash,
 				frame: false,
 				skipTaskbar: true,
-				center: true,
 				resizable: false,
+				center: true,
 				shadow: false,
-				show: false,
+				backgroundColor: '#000',
 			});
 			
 			wins.splash.message = (...args) => wins.splash.webContents.executeJavaScript(`
@@ -185,12 +206,7 @@ var fs = require('fs'),
 				});
 			`);
 			
-			wins.splash.once('ready-to-show', () => wins.splash.show());
-			
-			wins.splash.webContents.once('did-finish-load', () => {
-				if(values.consts.ss_dev_debug)wins.splash.webContents.openDevTools({ mode: 'undocked' });
-				wins.splash.show();
-				
+			wins.splash.once('ready-to-show', () => {
 				var note, exit_and_visit = err => {
 					if(err)console.error(err);
 					
@@ -253,21 +269,13 @@ var fs = require('fs'),
 			wins.splash.loadURL('data:text/html,' + encodeURIComponent(html.splash));
 		},
 		main(){
-			wins.game = new electron.BrowserWindow({
+			wins.game = setup_win({
 				width: electron.screen.getPrimaryDisplay().size.width * 0.85,
 				height: electron.screen.getPrimaryDisplay().size.height * 0.75,
-				show: false,
-				center: true,
-				title: 'Shitsploit Desktop',
-				webPreferences: {
-					preload: path.join(values.consts.app_dir, 'preload.js'),
-				},
+				backgroundColor: '#000',
+				thickFrame: true,
+				webPreferences: { enableRemoteModule: true, preload: path.join(values.consts.app_dir, 'preload.js') },
 			});
-			
-			// load cheat only once
-			wins.game.webContents.once('did-finish-load', () => values.consts.ss_dev_debug && wins.game.webContents.openDevTools({ mode: 'undocked' }));
-			
-			wins.game.on('page-title-updated', event => event.preventDefault());
 			
 			electron.session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
 				details.requestHeaders['user-agent'] = values.useragent;
@@ -283,13 +291,12 @@ var fs = require('fs'),
 			wins.game.webContents.on('will-navigate', nav);
 			
 			wins.game.once('closed', () => {
-				wins.game = null;
 				if(wins.sploit)wins.sploit.destroy();
+				wins.game = null;
 			});
 			
 			wins.game.once('ready-to-show', () => {
 				wins.splash.destroy();
-				wins.game.show();
 				init.cheat();
 			});
 			
@@ -319,18 +326,10 @@ var fs = require('fs'),
 			}].forEach(st => shortcut.register(wins.game, st.key, st.press));
 		},
 		editor(){
-			wins.editor = new electron.BrowserWindow({
+			wins.editor = setup_win({
 				width: wins.game.getSize()[0] * values.consts.window_resize.editor,
 				height: wins.game.getSize()[1] * values.consts.window_resize.editor,
-				show: false,
-				darkTheme: true,
-				center: true,
 				parent: wins.game,
-				webPreferences: {
-					nodeIntegration: false,
-					webSecurity: false,
-				},
-				icon: path.join(values.consts.app_dir, 'sploit.png'),
 			});
 			
 			wins.editor.setMenu(null);
@@ -340,103 +339,62 @@ var fs = require('fs'),
 			wins.editor.webContents.on('new-window', nav);
 			wins.editor.webContents.on('will-navigate', nav);
 			
-			wins.editor.once('ready-to-show', () => {
-				if(values.consts.ss_dev_debug)wins.editor.webContents.openDevTools({
-					mode: 'undocked'
-				});
-				wins.editor.show();
-			});
-			
 			wins.editor.once('closed', () => {
 				wins.editor = null;
 			});			
 		},
 		social(url){
-			wins.social = new electron.BrowserWindow({
+			wins.social = setup_win({
 				width: wins.game.getSize()[0] * values.consts.window_resize.social,
 				height: wins.game.getSize()[1] * values.consts.window_resize.social,
-				show: false,
-				darkTheme: true,
-				center: true,
 				parent: wins.game,
-				webPreferences: {
-					nodeIntegration: false,
-					webSecurity: false,
-				},
-				icon: path.join(values.consts.app_dir, 'sploit.png'),
 			});
 			
 			wins.social.setMenu(null);
-			
 			wins.social.loadURL(url);
 			
 			wins.social.webContents.on('new-window', nav);
 			wins.social.webContents.on('will-navigate', nav);
-			
-			wins.social.once('ready-to-show', () => {
-				if(values.consts.ss_dev_debug)wins.social.webContents.openDevTools({
-					mode: 'undocked'
-				});
-				wins.social.show();
-			});
 			
 			wins.social.once('closed', () => {
 				wins.social = null;
 			});
 		},
 		viewer(url){
-			var size = wins.game.getSize();
-			wins.viewer = new electron.BrowserWindow({
-				width: size[0] * values.consts.window_resize.viewer,
-				height: size[1] * values.consts.window_resize.viewer,
-				show: false,
-				darkTheme: true,
-				center: true,
+			wins.viewer = setup_win({
+				width: wins.game.getSize()[0] * values.consts.window_resize.viewer,
+				height: wins.game.getSize()[1] * values.consts.window_resize.viewer,
 				parent: wins.game,
-				webPreferences: {
-					nodeIntegration: false,
-					webSecurity: false,
-				},
-				icon: path.join(values.consts.app_dir, 'sploit.png'),
 			});
 			
 			wins.viewer.setMenu(null);
-			
 			wins.viewer.loadURL(url);
 			
 			wins.viewer.webContents.on('new-window', nav);
 			wins.viewer.webContents.on('will-navigate', nav);
 			
-			wins.viewer.once('ready-to-show', () => {
-				if(values.consts.ss_dev_debug)wins.viewer.webContents.openDevTools({ mode: 'undocked' });
-				wins.viewer.show();
+			wins.viewer.once('closed', () => {
+				wins.viewer = null;
 			});
-			
-			wins.viewer.once('closed', () => wins.viewer = null);
 		},
 		cheat(){
-			wins.sploit = new electron.BrowserWindow({
+			wins.sploit = setup_win({
 				...sizes.cheat,
 				x: wins.game.getPosition()[0] + 50,
 				y: wins.game.getPosition()[1] + (wins.game.getSize()[1] / 2) - (328 / 2),
-				show: true,
 				frame: false,
 				resizable: false,
-				movable: true,
 				transparent: false,
 				shadow: false,
-				show: false,
+				backgroundColor: '#000',
 				webPreferences: { nodeIntegration: true },
 				parent: os.type != 'Linux' ? wins.game : void'',
 				alwaysOnTop: os.type == 'Linux' ? true : void'',
-				menu: null,
 				title: 'Shitsploit UI',
 			});
 			
-			wins.sploit.on('maximize', () => {
-				wins.sploit.unmaximize()
-			});
-
+			// wins.sploit.on('maximize', () => wins.sploit.unmaximize());
+			
 			wins.sploit.on('focus', () => wins.sploit.setOpacity(1));
 			
 			wins.sploit.on('blur', () => wins.sploit.setOpacity(0.75));
@@ -447,8 +405,6 @@ var fs = require('fs'),
 			});
 			
 			wins.sploit.loadURL('data:text/html,' + encodeURIComponent(html.ui));
-			
-			wins.sploit.on('ready-to-show', () => wins.sploit.show());
 			
 			wins.sploit.webContents.on('did-finish-load', () => {
 				if(!wins.sploit.webContents.isDevToolsOpened() && values.consts.ss_dev_debug)wins.sploit.webContents.openDevTools({ mode: 'undocked' });
@@ -645,6 +601,19 @@ if(process.platform == 'darwin')electron.Menu.setApplicationMenu(electron.Menu.b
 		}
 	]
 }]));
+
+var deep_handler = {
+	get(obj, prop){
+		var ret = Reflect.get(obj, prop);
+		
+		return typeof ret == 'object' ? new Proxy(ret, deep_handler) : obj[prop];
+	},
+	set(obj, prop, value){
+		var ret = Reflect.set(obj, prop, value);
+		
+		return ret
+	},
+};
 
 init.prompt();
 

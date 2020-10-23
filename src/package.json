@@ -21,8 +21,7 @@
 		"dist:mac": "electron-builder --macos",
 		"dist:win": "electron-builder --windows",
 		"dist:win32": "electron-builder --windows --ia32",
-		"dist:wl": "electron-builder --windows --linux",
-		"dist:all": "electron-builder -wlm"
+		"dist:wl": "electron-builder --windows --linux"
 	},
 	"build": {
 		"productName": "Shitsploit Client",
@@ -45,8 +44,8 @@
 	},
 	"dependencies": {
 		"bytenode": "^1.1.6",
-		"node-fetch": "^2.6.1",
 		"electron-localshortcut": "^3.2.1",
+		"node-fetch": "^2.6.1",
 		"v8-compile-cache": "^2.1.1"
 	}
 }

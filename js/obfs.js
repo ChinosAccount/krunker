@@ -3,11 +3,11 @@ var bytenode = require('bytenode'),
 	path = require('path'),
 	fs = require('fs'),
 	v8 = require('v8'),
-	mod = require('module'),
 	consts = require('./consts.js'),
 	default_obfs_ops = {
 		splitStrings: true,
 		stringArrayThreshold: 1,
+		splitStringsChunkLength: 15,
 		deadCodeInjection: true,
 		deadCodeInjectionThreshold: 1,
 		renameGlobals: true,
@@ -15,8 +15,6 @@ var bytenode = require('bytenode'),
 		identifierNamesGenerator: 'mangled-shuffled',
 		stringArrayEncoding: ['rc4'],
 	};
-
-v8.setFlagsFromString('--no-lazy');
 
 module.exports = {
 	// strings
@@ -27,27 +25,19 @@ module.exports = {
 	// templates
 	t1: {
 		obio: true,
-		obio_ops: Object.assign(default_obfs_ops, {
-			
-		}),
+		obio_ops: default_obfs_ops,
 	},
 	t2: {
 		obio: true,
-		obio_ops: Object.assign(default_obfs_ops, {
-			
-		}),
+		obio_ops: default_obfs_ops,
 	},
 	t3: {
 		obio: true,
-		obio_ops: Object.assign(default_obfs_ops, {
-			
-		}),
+		obio_ops: default_obfs_ops,
 	},
 	t4: { // ui
-		obio: false,
-		obio_ops: Object.assign(default_obfs_ops, {
-			renameGlobals: false,
-		}),
+		obio: true,
+		obio_ops: default_obfs_ops,
 	},
 	o(file_name, options = {}){ // obfuscate
 		if(file_name.constructor == String && module.exports[file_name])file_name = module.exports[file_name];
@@ -71,7 +61,7 @@ module.exports = {
 			// load custom options if we obfuscate
 			try{
 				if(options.obio){
-					var consts_wrapped = mod.wrap(fs.readFileSync(path.join(__dirname, 'consts.js'), 'utf8'));
+					var consts_wrapped = require('module').wrap(fs.readFileSync(path.join(__dirname, 'consts.js'), 'utf8'));
 					
 					fs.writeFileSync(file_obfus, jsob.obfuscate('var ss_requires = {}, ss_require = file => ss_requires[file], ce = { exports: {} }, ex = {};' + consts_wrapped.replace(/.$/, '') + '(ex, require("module").createRequire(__dirname), ce, __filename, __dirname); ss_requires["./consts.jsc"] = ce.exports || ex;'
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));

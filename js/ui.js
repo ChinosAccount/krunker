@@ -1,3 +1,4 @@
+'use strict';
 module.exports = async require => {
 	var fs = require('fs'),
 		path = require('path'),
@@ -217,7 +218,7 @@ body {
 	width: 60px;
 	line-height: 30px;
 	text-align: center;
-		}` ], { type: 'text/css' })),
+}` ], { type: 'text/css' })),
 				style = document.head.appendChild(document.createElement('link')),
 				process_controls = (control, tab, tab_button, tab_ele) => {
 					if(control.type == 'nested_menu'){
@@ -268,13 +269,20 @@ body {
 								break
 							case'text-small':
 								content_name.style['font-size'] = '12px';
+								content_name.style['padding-left'] = '8px';
+								break
+							case'text-medium':
+								content_name.style['font-size'] = '13px';
+								content_name.style['padding-left'] = '8px';
 								break
 							case'text-bold':
 								content_name.style['font-weight'] = '600';
+								content_name.style['padding-left'] = '8px';
 								break
 							case'text-small-bold':
 								content_name.style['font-size'] = '12px';
 								content_name.style['font-weight'] = '600';
+								content_name.style['padding-left'] = '8px';
 								break
 
 						}
@@ -509,12 +517,6 @@ body {
 				val_get: _ => values.config.game.overlay,
 				val_set: v => values.config.game.overlay = v,
 				key: 8,
-			},{
-				name: 'S',
-				type: 'bool',
-				val_get: _ => values.config.game.delt,
-				val_set: v => values.config.game.delt = v,
-				key: 9,
 			}],
 		},{
 			name: 'Game',
@@ -550,12 +552,6 @@ body {
 				type: 'bool',
 				val_get: _ => values.config.game.no_zoom,
 				val_set: v => values.config.game.no_zoom = v,
-				key: 'unset',
-			},{
-				name: 'Speed',
-				type: 'bool',
-				val_get: _ => values.config.game.speed,
-				val_set: v => values.config.game.speed = v,
 				key: 'unset',
 			}],
 		},{
@@ -673,14 +669,11 @@ body {
 					name: 'Shitsploit - Divide',
 					type: 'text-small',
 				}, {
-					name: 'Math stuff (lots more) - Skid Lamer',
+					name: 'Math stuff - Skid Lamer',
 					type: 'text-small',
 				}, {
-					name: 'chonker1337 - chonker1337',
-					type: 'text-small',
-				}, {
-					name: 'Anyone claiming to "contribute" to the client and isnt listed here is lying to you',
-					type: 'text',
+					name: 'Anyone claiming to "contribute" to the client and isnt listed here is lying',
+					type: 'text-medium',
 				}],
 				key: 'unset',
 			},{

@@ -1,3 +1,4 @@
+'use strict';
 var fs = require('fs'),
 	path = require('path'),
 	electron = require('electron'),
@@ -5,14 +6,14 @@ var fs = require('fs'),
 	THREE = {},
 	gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}',
 	uhook = (orig_func, handler) => {
-		var func = function(){
-			return Reflect.apply(handler, this, [orig_func, this, arguments]);
+		var func = function(...args){
+			return Reflect.apply(handler, this, [orig_func, this, args]);
 		};
 		
 		func.toString = Reflect.apply(Function.prototype.bind, orig_func.toString, [orig_func]);
 		Reflect.defineProperty(func.toString, 'name', { get: _ =>  orig_func.toString.name });
 		Reflect.defineProperty(func, 'length', { get: _ => orig_func.length });
-		func.__lookupGetter__ = func.toString.__lookupGetter__ = function(){ try{ Reflect.apply(orig_func, this, arguments) }catch(err){ throw err } }
+		func.__lookupGetter__ = func.toString.__lookupGetter__ = function(...args){ try{ Reflect.apply(orig_func, this, args) }catch(err){ throw err } }
 		func.toString.__lookupGetter__.toString = Function.prototype.bind.apply(func.toString.__lookupGetter__.toString, [orig_func.__lookupGetter__]);
 		
 		return func
@@ -51,6 +52,7 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
+			vrtInit: (run_code, args1, args2) => Reflect.apply(new Function('ss_data', '__LOADER__mmTokenPromise', 'random', '(function(){' + Buffer.from(run_code, 'base64').toString() + ' }).apply(window, [])'), window, [ cheat.storage, ...args2 ]),
 			key_press: (keycode, keyname, keycode2, keyud) => document.dispatchEvent(new KeyboardEvent(keyud,{altKey:false,bubbles:true,cancelBubble:false,cancelable:true,charCode:0,code:keyname,composed:true,ctrlKey:false,currentTarget:null,defaultPrevented:true,detail:0,eventPhase:0,explicitOriginalTarget:document.body,isComposing:false,isTrusted:true,key:keyname,keyCode:keycode,layerX:0,layerY:0,location:0,metaKey:false,originalTarget:document.body,rangeOffset:0,rangeParent:null,repeat:false,returnValue:false,shiftKey:false,srcElement:document.body,target:document.body,timeStamp:Date.now(),type:keyud,view:parent,which:keycode})),
 			log(...args){
 				if(values.consts.ss_dev)console.log('%cShitsploit', 'background: #27F; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
@@ -117,6 +119,9 @@ var fs = require('fs'),
 				}
 			},
 			find_match: async () => {
+				if(cheat.finding_match)return;
+				cheat.finding_match = true;
+				
 				var new_match = null,
 					games = [],
 					region = ({
@@ -143,25 +148,21 @@ var fs = require('fs'),
 				
 				if(data.error)return console.error(data, body, data.error);
 				
-				new_match = data.games
-				.map(([ match_id, match_region, match_players, match_max_players, gamemode ]) => ({
+				new_match = data.games.map(([ match_id, match_region, match_players, match_max_players, gamemode ]) => ({
 					id: match_id,
 					region: match_region,
 					players: match_players,
 					max_players: match_max_players,
-					gamemode: {
-						name: gamemode.i,
-						game_id: gamemode.v,
-						custom: gamemode.cs,
-					}
+					gamemode: { name: gamemode.i, game_id: gamemode.v, custom: gamemode.cs }
 				}))
-				// modify a bit to join the smallest match, but do fullest for release
 				.sort((prev_match, match) => ((match.players >= 6 ? 4 : match.players) / match.max_players) * 100 - ((prev_match.players >= 6 ? 4 : prev_match.players) / prev_match.max_players) * 100)
 				.find(match => !match.gamemode.custom && match.region == region && (match.players <= match.max_players - 2 || match.players <= match.max_players - 1));
 				
 				return new_match ? window.location.href = 'https://krunker.io?game=' +  new_match.id : 'could not find match';
 			},
 			process_interval(){ // run every 500 ms
+				if(!document.querySelector('#instructions'))return;
+				
 				var intxt = document.querySelector('#instructions').textContent;
 				
 				if(config.game.auto_respawn){
@@ -197,18 +198,22 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player.currentAmmo && config.aim.auto_reload)data[keys.reload] = 1;
 				
+				cheat.game.config.deltaMlt = 1;
+				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
-					var twoPI = Math.PI * 2,
-						yVal = cheat.target.y + (1 - cheat.target[cheat.vars.crouchVal] * 3),
-						// (cheat.target.isAI ? cheat.game.AI.ais[0].dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
+					var yVal = cheat.target.y + (cheat.target[cheat.symbols.isAI] ? cheat.target.dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
 						yDire = cheat.getDir(cheat.player.z || cheat.controls.object.position.z, cheat.player.x || cheat.controls.object.position.x, cheat.target.z, cheat.target.x),
 						xDire = cheat.getXDire(cheat.player.x || cheat.controls.object.position.x, cheat.player.y || cheat.controls.object.position.y, cheat.player.z || cheat.controls.object.position.z, cheat.target.x, yVal, cheat.target.z),
-						xD = cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27 )) % twoPI, 3),
-						yD = cheat.round(yDire % twoPI, 3),
-						rot = { x: xD, y: yD };
+						xv = xDire
+						- (cheat.player[cheat.vars.recoilAnimY] * 0.27)
+						+ (cheat.player.jumpBobY * 0.02),
+						rot = {
+							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3),
+							y:cheat.round(yDire % (Math.PI * 2), 3),
+						};
 					
-					data[keys.delta] += 1;
+					cheat.game.config.deltaMlt = 1.2;
 					
 					switch(config.aim.status){
 						case'silent':
@@ -258,20 +263,16 @@ var fs = require('fs'),
 							break
 					}
 				}else{
-					// 0.27
-					data[keys.xdir] = (cheat.controls[cheat.vars.pchObjc].rotation.x - cheat.player[cheat.vars.recoilAnimY] * 0.27) * 1000
-					data[keys.ydir] = cheat.controls.object.rotation.y * 1000
-				}
-				
-				if(config.game.delt)data[keys.delta] = 0;
-				
-				if((!cheat.player[cheat.vars.didShoot] && !data[keys.shoot] || cheat.player[cheat.vars.reloadTimer]) && config.game.pitch_mod && config.game.pitch_mod != 'off')switch(config.game.pitch_mod){
-					case'random': cheat.ys = !cheat.ys; data[keys.xdir] = 10e3 * (cheat.ys ? 1 : -1); break
-					case'up': data[keys.xdir] = 10e3 * 1; break
-					case'down': data[keys.xdir] = 10e3 * -1; break
+					if((!cheat.player[cheat.vars.didShoot] && !data[keys.shoot] || cheat.player[cheat.vars.reloadTimer]) && config.game.pitch_mod && config.game.pitch_mod != 'off')switch(config.game.pitch_mod){
+						case'random': cheat.ys = !cheat.ys; data[keys.xdir] = 10e3 * (cheat.ys ? 1 : -1); break
+						case'up': data[keys.xdir] = 10e3 * 1; break
+						case'down': data[keys.xdir] = 10e3 * -1; break
+					}
 				}
 			},
 			process(){ try{
+				window.cheese = cheat;
+				
 				if(!cheat.game)return;
 				
 				cheat.controls[cheat.vars.pchObjc].rotation.x -= cheat.inputs.ArrowDown ? 0.006 : 0;
@@ -282,7 +283,6 @@ var fs = require('fs'),
 				
 				cheat.server_vars.kickTimer = Infinity;
 				
-				cheat.game.config.deltaMlt = cheat.game.config.deltaMlt = config.game.speed ? 1.05 : 1;
 				cheat.game.config.thirdPerson = config.game.thirdperson ? true : false;
 				
 				if(!cheat.controls || !cheat.world || !cheat.player)return;
@@ -390,25 +390,28 @@ var fs = require('fs'),
 					var ais = cheat.game.AI.ais.filter(ent => ent.mesh && ent.mesh.visible && ent.health && ent.x && ent.canBSeen);
 					
 					ais.forEach(ent => {
-						ent.pos = {
-							distanceTo(p2){
-								var dx = this.x - p2.x,
-									dy = this.y - p2.y,
-									dz = this.z - p2.z;
-								
-								return Math.hypot(dx, dy, dz);
-							},
-							x: ent.x != null ? ent.x : 0,
-							y: ent.y != null ? ent.y : 0,
-							z: ent.z != null ? ent.z : 0,
-							project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
-							applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
-							clone(){return Object.assign({}, this)},
-						};
+						if(!ent.pos2D)Object.defineProperties(ent, {
+							pos: { get: _ => ({
+								distanceTo(p2){
+									var dx = this.x - p2.x,
+										dy = this.y - p2.y,
+										dz = this.z - p2.z;
+									
+									return Math.hypot(dx, dy, dz);
+								},
+								x: ent.x != null ? ent.x : 0,
+								y: ent.y != null ? ent.y : 0,
+								z: ent.z != null ? ent.z : 0,
+								project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
+								applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
+								clone(){return Object.assign({}, this)},
+							}) },
+							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 } },
+						});
 						
 						ent.canSee = cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
 						ent.inFrustrum = cheat.world.frustum.containsPoint(ent.pos);
-						ent.pos2D = ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 };
+						ent[cheat.symbols.isAI] = true;
 					});
 					
 					targets = ais.filter(ent => ent.pos2D && ent.canSee && (config.aim.frustrum_check ? ent.inFrustrum : true));
@@ -564,6 +567,8 @@ var fs = require('fs'),
 				['zVel', /this\['z']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedZ']/, 1],
 				['reloadTimer', /this\['(\w+)']-=\w+,\w+\['reloadUIAnim']/, 1],
 				['mouseDownR', /this\['(\w+)']=0x0,this\['keys']=/, 1], 
+				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
+				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
 			],
 			/*
 			/this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/
@@ -632,8 +637,8 @@ var fs = require('fs'),
 		setInterval(cheat.process_interval, 1000);
 		
 		// pass storage object to game
-		cheat.patches.set(/^/, '(ss_data => { ss_data.info("injected", window); return ');
-		cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + ')');
+		// cheat.patches.set(/^/, '(ss_data => { ss_data.info("injected", window); return ');
+		// cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + '())');
 		
 		cheat.storage.procInputs = cheat.procInputs;
 		
@@ -692,10 +697,10 @@ var fs = require('fs'),
 			css_tag.href = css_url;
 			css_tag.rel = 'stylesheet';	
 			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
-		}catch(err){ console.log(err) } }, 50);
+		}catch(err){ console.log(err) } }, 0);
 	},
 	jstr = JSON.stringify,
-	super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]]));
+	super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]])),
 	inject = () => {
 		window.addEventListener('keydown', event => (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
 		window.addEventListener('keyup', event => (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
@@ -730,8 +735,9 @@ var fs = require('fs'),
 					
 					if(cheat.vars_not_found.length)console.log('%c(shitsploit)\nCould not find: ' + cheat.vars_not_found.join(', '), 'color:#16D');
 					
-					window[cheat.objects.storage][cheat.randoms.storage] = cheat.storage;
-						
+					code = 'console.trace("hi"); var run_code = "' + Buffer.from(code).toString('base64') + '"; ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit + '(run_code, arguments, arguments.callee.caller.arguments);'
+					window[cheat.objects.vrtInit][cheat.randoms.vrtInit] = (...args) => cheat.vrtInit(...args);
+					
 					return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
 				}));
 			}
@@ -740,16 +746,15 @@ var fs = require('fs'),
 		});
 	};
 
-(async url => new Promise((resolve, reject) => fetch(url).then(res => res.text()).then(body => {
-	var exports = {},
-		module = new Proxy({}, {
+fetch('https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js').then(res => res.text()).then(body => {
+	var exports = {}, module = new Proxy({}, {
 			get: (obj, prop) => prop == 'exports' ? exports : Reflect.get(obj, prop),
 			set: (obj, prop, value) => prop == 'exports' ? exports = value : Reflect.set(obj, prop, value)
 		});
 	
 	new Function('module', 'exports', body)(module, exports);
 	
-	resolve(exports);
-})))('https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js').then(exports => THREE = exports);
+	THREE = exports;
+});
 
-module.exports = require => (init(), inject());
+module.exports = () => (init(), inject());

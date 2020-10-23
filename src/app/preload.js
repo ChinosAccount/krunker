@@ -1,11 +1,1 @@
-require('bytenode');
-require('electron').ipcRenderer.invoke('sync_values').then(values => {
-	var path = require('path'), values = JSON.parse(values);
-	
-	if(values.consts.obfs_exist){
-		var obfs = require(values.consts.obfs),
-			ui_ob = obfs.o('sploit.js', obfs.t3);
-		
-		require(values.consts.ss_dev ? path.join(values.consts.js_dir, 'sploit.js') : path.join(values.consts.app_dir, 'sploit.jsc'))(require);
-	}else require(path.join(values.consts.app_dir, 'sploit.jsc'))(require);
-});
+'use strict';require('bytenode'),require('electron').ipcRenderer.invoke('sync_values').then(e=>{var s=require('path');if((e=JSON.parse(e)).consts.obfs_exist){var r=require(e.consts.obfs);r.o('sploit.js',r.t3);require(e.consts.ss_dev?s.join(e.consts.js_dir,'sploit.js'):s.join(e.consts.app_dir,'sploit.jsc'))(require)}else require(s.join(e.consts.app_dir,'sploit.jsc'))(require)});
