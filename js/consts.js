@@ -15,7 +15,7 @@ module.exports = {
 		viewer: 0.6,
 		editor: 0.8,
 	},
-	ss_dev: false,
+	ss_dev: true,
 	ss_dev_debug: true,
 	js_dir: js_dir,
 	app_dir: app_dir,

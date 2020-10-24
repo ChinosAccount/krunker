@@ -123,8 +123,7 @@ var fs = require('fs'),
 				if(cheat.finding_match)return;
 				cheat.finding_match = true;
 				
-				var new_match = null,
-					games = [],
+				var new_match,
 					region = ({
 						SYD: 'au-syd',
 						TOK: 'jb-hnd',
@@ -181,6 +180,8 @@ var fs = require('fs'),
 				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
 				
+				cheat.deltaMlt_increase = 0;
+				
 				// skid bhop
 				if(config.game.bhop != 'off'){
 					if(cheat.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide'){
@@ -199,8 +200,6 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player.currentAmmo && config.aim.auto_reload)data[keys.reload] = 1;
 				
-				cheat.game.config.deltaMlt = 1;
-				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
 					var yVal = cheat.target.y + (cheat.target[cheat.symbols.isAI] ? cheat.target.dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
@@ -214,7 +213,7 @@ var fs = require('fs'),
 							y:cheat.round(yDire % (Math.PI * 2), 3),
 						};
 					
-					cheat.game.config.deltaMlt = 1.2;
+					cheat.deltaMlt_increase += 0.2;
 					
 					switch(config.aim.status){
 						case'silent':
@@ -269,6 +268,25 @@ var fs = require('fs'),
 						case'up': data[keys.xdir] = 10e3 * 1; break
 						case'down': data[keys.xdir] = 10e3 * -1; break
 					}
+				}
+				
+				if(!cheat.game.config._deltaMlt){
+					var orig_delta_mlt = cheat.game.config;
+					
+					cheat.game.config._deltaMlt = Object.defineProperty(cheat.game.config, 'deltaMlt', {
+						get(){
+							var ret = cheat.game.config._deltaMlt ;
+							
+							if(ret.constructor == Number)ret += cheat.deltaMlt_increase;
+							
+							console.log(ret);
+							
+							return ret ? ret : orig_delta_mlt;
+						},
+						set(nv){
+							cheat.game.config._deltaMlt = nv;
+						}
+					});
 				}
 			},
 			process(){ try{
@@ -597,6 +615,7 @@ var fs = require('fs'),
 				
 				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ss_data.exports = $2.c; ss_data.modules = $2.m;/'],
 			]),
+			deltaMlt_increase: 0,
 			font: 'Inconsolata, monospace',
 			storage: {
 				/*modules: [],
