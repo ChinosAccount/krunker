@@ -2,10 +2,8 @@
 var fs = require('fs'),
 	path = require('path'),
 	electron = require('electron'),
-	Buffer = require('buffer').Buffer,
 	cheat = {},
 	THREE = {},
-	gen_asset = (content_type, data) => 'asset:{' + encodeURIComponent(content_type) + '},{' + encodeURIComponent(btoa(data)) + '}',
 	uhook = (orig_func, handler) => {
 		var func = function(...args){
 			return Reflect.apply(handler, this, [orig_func, this, args]);
@@ -53,11 +51,15 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
-			vrtInit: (run_code, args1, args2) => Reflect.apply(new Function('ss_data', '__LOADER__mmTokenPromise', 'random', '(function(){' + Buffer.from(run_code, 'base64').toString() + ' }).apply(window, [])'), window, [ cheat.storage, ...args2 ]),
 			key_press: (keycode, keyname, keycode2, keyud) => document.dispatchEvent(new KeyboardEvent(keyud,{altKey:false,bubbles:true,cancelBubble:false,cancelable:true,charCode:0,code:keyname,composed:true,ctrlKey:false,currentTarget:null,defaultPrevented:true,detail:0,eventPhase:0,explicitOriginalTarget:document.body,isComposing:false,isTrusted:true,key:keyname,keyCode:keycode,layerX:0,layerY:0,location:0,metaKey:false,originalTarget:document.body,rangeOffset:0,rangeParent:null,repeat:false,returnValue:false,shiftKey:false,srcElement:document.body,target:document.body,timeStamp:Date.now(),type:keyud,view:parent,which:keycode})),
 			log(...args){
 				if(values.consts.ss_dev)console.log('%cShitsploit', 'background: #27F; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
 				else console.log('%cDEBUG', 'background: #F72; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
+				return true;
+			},
+			err(...args){
+				if(values.consts.ss_dev)console.error('%cShitsploit', 'background: #F22; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', '\n', ...args);
+				else console.error('%cDEBUG', 'background: #F62; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', '\n', ...args);
 				return true;
 			},
 			wrld2scrn(pos, aY = 0){
@@ -115,9 +117,7 @@ var fs = require('fs'),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
-				try{ return Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args);
-				}catch(err){ console.error(err); return {};
-				}
+				try{ return Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
 			},
 			find_match: async () => {
 				if(cheat.finding_match)return;
@@ -146,7 +146,7 @@ var fs = require('fs'),
 					data.error = err
 				}
 				
-				if(data.error)return console.error(data, body, data.error);
+				if(data.error)return cheat.err(data, body, data.error);
 				
 				new_match = data.games.map(([ match_id, match_region, match_players, match_max_players, gamemode ]) => ({
 					id: match_id,
@@ -160,7 +160,7 @@ var fs = require('fs'),
 				
 				return new_match ? window.location.href = 'https://krunker.io?game=' +  new_match.id : 'could not find match';
 			},
-			process_interval(){ // run every 500 ms
+			process_interval: async () => { // run every 1000 ms
 				if(!document.querySelector('#instructions'))return;
 				
 				var intxt = document.querySelector('#instructions').textContent;
@@ -180,8 +180,6 @@ var fs = require('fs'),
 				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
 				
-				cheat.deltaMlt_increase = 0;
-				
 				// skid bhop
 				if(config.game.bhop != 'off'){
 					if(cheat.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide'){
@@ -200,20 +198,57 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player.currentAmmo && config.aim.auto_reload)data[keys.reload] = 1;
 				
+				cheat.game.config.inc_deltaMlt = 0;
+				
+				var targets;
+				
+				if(config.aim.target_ais && cheat.game.AI.ais.length){
+					var ais = cheat.game.AI.ais.filter(ent => ent.mesh && ent.mesh.visible && ent.health && ent.x && ent.canBSeen);
+					
+					ais.forEach(ent => {
+						if(!ent.pos2D)Object.defineProperties(ent, {
+							pos: { get: _ => ({
+								distanceTo(p2){
+									var dx = this.x - p2.x,
+										dy = this.y - p2.y,
+										dz = this.z - p2.z;
+									
+									return Math.hypot(dx, dy, dz);
+								},
+								x: ent.x != null ? ent.x : 0,
+								y: ent.y != null ? ent.y : 0,
+								z: ent.z != null ? ent.z : 0,
+								project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
+								applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
+								clone(){return Object.assign({}, this)},
+							}) },
+							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 } },
+						});
+						
+						ent.canSee = cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
+						ent.inFrustrum = cheat.world.frustum.containsPoint(ent.pos);
+						ent[cheat.symbols.isAI] = true;
+					});
+					
+					targets = ais.filter(ent => ent.pos2D && ent.canSee && (config.aim.frustrum_check ? ent.inFrustrum : true));
+				}else targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent.pos2D && ent.canSee && ent.isActive && ent.isEnemy && (config.aim.frustrum_check ? ent.inFrustrum : true));
+				
+				cheat.target = targets.sort((ent_1, ent_2) => (cheat.center_vec.distanceTo(ent_1.pos2D) - cheat.center_vec.distanceTo(ent_2.pos2D)) * (ent_1.inFrustrum == ent_2.inFrustrum ? 1 : 0.5) )[0];
+				
+				// cheat.target = targets.sort((ent_1, ent_2) => (ent_1.pos2D.health - ent_2.pos2D.health) * (ent_1.inFrustrum == ent_2.inFrustrum ? 1 : 0.5) )[0];
+				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
 					var yVal = cheat.target.y + (cheat.target[cheat.symbols.isAI] ? cheat.target.dat.mSize / 1.5 : 1 - cheat.target[cheat.vars.crouchVal] * 3),
 						yDire = cheat.getDir(cheat.player.z || cheat.controls.object.position.z, cheat.player.x || cheat.controls.object.position.x, cheat.target.z, cheat.target.x),
 						xDire = cheat.getXDire(cheat.player.x || cheat.controls.object.position.x, cheat.player.y || cheat.controls.object.position.y, cheat.player.z || cheat.controls.object.position.z, cheat.target.x, yVal, cheat.target.z),
-						xv = xDire
-						- (cheat.player[cheat.vars.recoilAnimY] * 0.27)
-						+ (cheat.player.jumpBobY * 0.02),
+						xv = xDire - cheat.player.recoilAnimYN * 0.27, // (cheat.player[cheat.vars.recoilAnimY] * 0.27),
 						rot = {
 							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3),
 							y:cheat.round(yDire % (Math.PI * 2), 3),
 						};
 					
-					cheat.deltaMlt_increase += 0.2;
+					// cheat.game.config.inc_deltaMlt = 0.1;
 					
 					switch(config.aim.status){
 						case'silent':
@@ -269,30 +304,19 @@ var fs = require('fs'),
 						case'down': data[keys.xdir] = 10e3 * -1; break
 					}
 				}
-				
-				if(!cheat.game.config._deltaMlt){
-					var orig_delta_mlt = cheat.game.config;
-					
-					cheat.game.config._deltaMlt = Object.defineProperty(cheat.game.config, 'deltaMlt', {
-						get(){
-							var ret = cheat.game.config._deltaMlt ;
-							
-							if(ret.constructor == Number)ret += cheat.deltaMlt_increase;
-							
-							console.log(ret);
-							
-							return ret ? ret : orig_delta_mlt;
-						},
-						set(nv){
-							cheat.game.config._deltaMlt = nv;
-						}
-					});
-				}
 			},
 			process(){ try{
-				window.cheese = cheat;
-				
 				if(!cheat.game)return;
+				
+				if(!cheat.game.config.deltaMlt_hooked){
+					cheat.game.config.deltaMlt_hooked = 1;
+					
+					var orig_delta = cheat.game.config.deltaMlt || 1;
+					Object.defineProperty(cheat.game.config, 'deltaMlt', {
+						get: _ => orig_delta + (cheat.game.config.inc_deltaMlt ? cheat.game.config.inc_deltaMlt : 0),
+						set: n => orig_delta = n,
+					});
+				}
 				
 				cheat.controls[cheat.vars.pchObjc].rotation.x -= cheat.inputs.ArrowDown ? 0.006 : 0;
 				cheat.controls[cheat.vars.pchObjc].rotation.x += cheat.inputs.ArrowUp ? 0.006 : 0;
@@ -347,11 +371,11 @@ var fs = require('fs'),
 						set: n => ent.weapon._zoom = n,
 					});
 				});
-			}catch(err){ console.error('CAUGHT:', err) }},
+			}catch(err){ cheat.err('CAUGHT:', err) }},
 			render(){ // rendering tasks
 				if(!cheat.cas || !cheat.ctx){
 					cheat.cas = document.querySelector('#game-overlay');
-					cheat.ctx = document.querySelector('#game-overlay') ? document.querySelector('#game-overlay').getContext('2d', { alpha: true }) : {};
+					cheat.ctx = cheat.cas ? cheat.cas.getContext('2d', { alpha: true }) : {};
 					
 					cheat.center_vec = {
 						x: window.innerWidth / 2,
@@ -365,7 +389,7 @@ var fs = require('fs'),
 				// draw overlay stuff
 				if(config.game.overlay && cheat.game && cheat.ctx){
 					cheat.ctx.strokeStyle = '#000'
-					cheat.ctx.font = 'Bold 14px ' + cheat.font;
+					cheat.ctx.font = 'Bold 14px Tahoma';
 					cheat.ctx.textAlign = 'start';
 					cheat.ctx.lineWidth = 2.6;
 					
@@ -403,43 +427,7 @@ var fs = require('fs'),
 					item.material.opacity = config.esp.walls ? item.orig_mat.opacity * config.esp.wall_opacity : item.orig_mat.opacity;
 				});
 				
-				var targets;
-				
-				if(config.aim.target_ais && cheat.game.AI.ais.length){
-					var ais = cheat.game.AI.ais.filter(ent => ent.mesh && ent.mesh.visible && ent.health && ent.x && ent.canBSeen);
-					
-					ais.forEach(ent => {
-						if(!ent.pos2D)Object.defineProperties(ent, {
-							pos: { get: _ => ({
-								distanceTo(p2){
-									var dx = this.x - p2.x,
-										dy = this.y - p2.y,
-										dz = this.z - p2.z;
-									
-									return Math.hypot(dx, dy, dz);
-								},
-								x: ent.x != null ? ent.x : 0,
-								y: ent.y != null ? ent.y : 0,
-								z: ent.z != null ? ent.z : 0,
-								project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
-								applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
-								clone(){return Object.assign({}, this)},
-							}) },
-							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(Object.assign({}, ent.pos)) : { x: 0, y: 0, z: 0 } },
-						});
-						
-						ent.canSee = cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
-						ent.inFrustrum = cheat.world.frustum.containsPoint(ent.pos);
-						ent[cheat.symbols.isAI] = true;
-					});
-					
-					targets = ais.filter(ent => ent.pos2D && ent.canSee && (config.aim.frustrum_check ? ent.inFrustrum : true));
-					
-				}else targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent.pos2D && ent.isActive && ent.canSee && ent.isEnemy && (config.aim.frustrum_check ? ent.inFrustrum : true));
-				
-				cheat.target = targets.sort((ent_1, ent_2) => ent_1.pos2D.distanceTo(cheat.center_vec) - ent_1.pos2D.distanceTo(cheat.center_vec))[0];
-				
-				cheat.game.players.list.filter(ent => ent.isActive && ent.inFrustrum && cheat.player.pos && !ent[cheat.vars.isYou]).forEach(ent => {
+				cheat.game.players.list.filter(ent => ent.isActive && ent.inFrustrum && cheat.player && cheat.player.pos && !ent[cheat.vars.isYou]).forEach(ent => {
 					var src_pos = cheat.wrld2scrn(ent.pos.clone()),
 						src_pos_crouch = cheat.wrld2scrn(ent.pos.clone(), ent.height - ent[cheat.vars.crouchVal] * 3),
 						esp_width = ~~((src_pos.y - cheat.wrld2scrn(ent.pos.clone(), ent.height).y) * 0.6),
@@ -455,7 +443,7 @@ var fs = require('fs'),
 					if(ent[cheat.vars.objInstances])ent[cheat.vars.objInstances].traverse(obj => {
 						if(obj.type != 'Mesh')return;
 						
-						obj.material.wireframe = Boolean(config.game.wireframe);
+						obj.material.wireframe = !!config.game.wireframe;
 						
 						if(ent[cheat.vars.isYou])return;
 						
@@ -517,10 +505,10 @@ var fs = require('fs'),
 							text_x = src_pos_crouch.x + 12 + (esp_width / 2),
 							text_y = src_pos.y - esp_height,
 							yoffset = 0,
-							font_size = 12 - (player_dist * 0.005);
+							font_size = 11 - (player_dist * 0.005);
 						
 						cheat.ctx.textAlign = 'middle';
-						cheat.ctx.font = 'Bold ' + font_size + 'px ' + cheat.font;
+						cheat.ctx.font = 'Bold ' + font_size + 'px Tahoma';
 						cheat.ctx.strokeStyle = '#000';
 						cheat.ctx.lineWidth = 2.5;
 						
@@ -530,10 +518,11 @@ var fs = require('fs'),
 							// player weapon & ammo
 							[['#FFF', ent.weapon.name ],
 								['#BBB', '['],
-								['#FFF', (ent.weapon.ammo ? ent.currentAmmo : 'N') + '/' + (ent.weapon.ammo ? ent.weapon.ammo : 'A') ],
+								['#FFF', (ent.weapon.ammo || 'N') + '/' + (ent.weapon.ammo || 'A') ],
 								['#BBB', ']']],
 							[['#BBB', 'Risk: '], [(ent.isRisk ? '#0F0' : '#F00'), ent.isRisk]],
-							[['#BBB', '['], ['#FFF', (player_dist / 10).toFixed() + 'm'], ['#BBB', ']']],
+							[['#BBB', 'Shootable: '], [(ent.canSee ? '#0F0' : '#F00'), ent.canSee]],
+							[['#BBB', '['], ['#FFF', ~~(player_dist / 10) + 'm'], ['#BBB', ']']],
 						].forEach((line, text_index) => {
 							var texts = line.filter(entry => entry),
 								xoffset = 0;
@@ -564,17 +553,15 @@ var fs = require('fs'),
 					}
 				});
 			},
-			ys: 0,
-			inputs: [],
 			find_vars: [
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
-				['objInstances', /this\['list']\[\w+]\['(\w+)']\['visible']=!0x1,this\['list']\[\w+]\['(\w+)']=!0x1;/, 1],
-				['inView', /this\['list']\[\w+]\['(\w+)']\['visible']=!0x1,this\['list']\[\w+]\['(\w+)']=!0x1;/, 2],
+				['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
+				['inView', /continue;if\(\S+\['\S+']\|\|!\S+\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 2],
 				['camera', /\['(\w+)'\]=new q\['Object3D'\]\(\),this\['\1'\]/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
-				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
+				['recoilAnimY', /this\['(\S+)']=0x0,this\['recoilForce'\]=0x0/, 1],
 				['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
 				['didShoot', /--,\w+\['(\w+)']=!0x0/, 1],
 				['ammos', /\['length'];for\(\w+=0x0;\w+<\w+\['(\w+)']\['length']/, 1],
@@ -589,56 +576,55 @@ var fs = require('fs'),
 				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
 				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
 			],
-			/*
-			/this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/
-			1 xDire 2 yDire
-			*/
 			patches: new Map([
 				// wallbangs
-				[/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (!ss_data.target().isAI && ss_data.config().aim.wallbangs && ss_data.player() && ss_data.player().weapon) ? (!$1.penetrable || !ss_data.player().weapon.pierce) : true)'],
+				[/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (!ssd.target.isAI && ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
 				// get vars
-				[/(this\['moveObj']=func)/, 'ss_data.game = this, $1'],
-				[/(this\['backgroundScene']=)/, 'ss_data.world = this, $1'],
-				[/((\w+)\['exports']\['enableHttps']=\w+\['exports']\['isProd'])/g, 'ss_data.server_vars = $2.exports, $1'],
-				[/((\w+)\['exports']\['keyboardMap']=)/, ' ss_data.utils = $2.exports; $1'],
-				
-				[/(this\['\w+']=function\(\w+,\w+,\w+,\w+\){)(this\['recon'])/, '$1 { ss_data.procInputs(...arguments) }; $2'],
+				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
+				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
+				[/((\w+)\['exports']\['enableHttps']=\w+\['exports']\['isProd'])/g, 'ssd.server_vars = $2.exports, $1'],
+				[/(this\['\w+']=function\(\w+,\w+,\w+,\w+\){)(this\['recon'])/, '$1 { ssd.procInputs(...arguments) }; $2'],
+				// [/(\w+\['exports'])=({'ahNum':)/g, '$1 = ssd.ws = $2'],
 				
 				// have a proper interval for rendering
-				[/requestAnimFrame\(/g, 'ss_data.frame() && requestAnimFrame('],
-				// fix fps count
-				[/(\['push']\(\w+\),\w+=)(\w+\['length'])(,\w+&&0x)/, '$1 ~~(ss_data.game?.config?.deltaMlt * $2) $3'],
-				// billboard fix
-				[/(var \w+)=\(\w+\['exports']\['isString']\(\w+\)\?v:'.*?'\)/, '$1 = "Your Ad Here"'],
+				[/requestAnimFrame\(/g, 'ssd.frame(requestAnimFrame, '],
 				
-				[/^/, 'ss_data.info("injected");'],
+				[/^/, 'ssd.info("injected"), '],
 				
-				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ss_data.exports = $2.c; ss_data.modules = $2.m;/'],
+				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ssd.exports = $2.c; ssd.modules = $2.m;/'],
 			]),
-			deltaMlt_increase: 0,
-			font: 'Inconsolata, monospace',
 			storage: {
-				/*modules: [],
-				exports: [],*/
-				config(){ return config },
-				player(){ return cheat.player ? cheat.player : { weapon: { pierce: false } } },
-				target(){ return cheat.target ? cheat.target : { isAI : false } },
-				frame(){
+				/* modules: [],
+				exports: [], */
+				get config(){ return config },
+				get player(){ return cheat.player || { weapon: {} } },
+				get target(){ return cheat.target || {} },
+				frame(frame, func){
 					cheat.game = cheat.storage.game;
 					cheat.world = cheat.storage.world;
 					cheat.server_vars = cheat.storage.server_vars;
 					cheat.player = cheat.game ? cheat.game.players.list.find(player => player[cheat.vars.isYou]) : null;
 					cheat.controls = cheat.game ? cheat.game.controls : null;
-					cheat.utils = cheat.storage.utils;
-					/*cheat.modules = cheat.storage.modules;
-					cheat.exports = cheat.storage.exports;*/
-					
-					
 					
 					if(cheat.world)cheat.world.scene.onBeforeRender = cheat.process;
 					cheat.render();
 					
-					return true;
+					try{
+						return Reflect.apply(frame, window, [(...args) => {
+							try{
+								return Reflect.apply(func, window, args);
+							}catch(err){
+								cheat.err(err);
+								return true;
+							}
+						}]);
+					}catch(err){
+						cheat.err(err);
+						return 1;
+					}
+				},
+				get log(){
+					return cheat.log
 				},
 				info(data){
 					switch(data){
@@ -646,16 +632,21 @@ var fs = require('fs'),
 							
 							cheat.log('injected to game');
 							
-							// hide vrtInit object now that it has been assigned
-							
-							cheat.log('hiding: ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit, window[cheat.objects.vrtInit][cheat.randoms.vrtInit]);
-							window[cheat.objects.vrtInit][cheat.randoms.vrtInit] = void 0;
+							cheat.log('hiding: ' + cheat.objects.storage + '.' + cheat.randoms.storage);
+							window[cheat.objects.storage][cheat.randoms.storage] = void 0;
 							
 							break
 					}
 				},
 			},
+			font: 'Inconsolata, monospace',
+			inputs: [],
+			ys: 0,
 		};
+		
+		// pass storage object to game
+		cheat.patches.set(/^/, '(ssd => { return ');
+		cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + ')');
 		
 		setInterval(cheat.process_interval, 1000);
 		
@@ -696,12 +687,8 @@ var fs = require('fs'),
 				button.innerHTML = 'Find game';
 			}, 50);
 			
-			// css and js
-			var load_css = fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");').join('\n'),
-				load_js = fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8'));
-			
 			// load js
-			load_js.forEach(data => {
+			fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8')).forEach(data => {
 				var js_url = window.URL.createObjectURL(new window.Blob([ data ], { type: 'application/javascript' })),
 					js_tag = document.head.appendChild(document.createElement('script'));
 				
@@ -711,12 +698,12 @@ var fs = require('fs'),
 			
 			// load css 
 			var css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ load_css ], { type: 'text/css' }));
+				css_url = window.URL.createObjectURL(new window.Blob([ fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");').join('') ], { type: 'text/css' }));
 			
 			css_tag.href = css_url;
 			css_tag.rel = 'stylesheet';	
 			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
-		}catch(err){ console.log(err) } }, 0);
+		}catch(err){ cheat.err(err) } }, 0);
 	},
 	jstr = JSON.stringify,
 	super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]])),
@@ -752,10 +739,9 @@ var fs = require('fs'),
 						else cheat.vars_not_found.push(label);
 					});
 					
-					if(cheat.vars_not_found.length)console.log('%c(shitsploit)\nCould not find: ' + cheat.vars_not_found.join(', '), 'color:#16D');
+					if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));
 					
-					code = 'var run_code = "' + Buffer.from(code).toString('base64') + '"; ' + cheat.objects.vrtInit + '.' + cheat.randoms.vrtInit + '(run_code, arguments, arguments.callee.caller.arguments);'
-					window[cheat.objects.vrtInit][cheat.randoms.vrtInit] = (...args) => cheat.vrtInit(...args);
+					window[cheat.objects.storage][cheat.randoms.storage] = cheat.storage;
 					
 					return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
 				}));
@@ -776,4 +762,5 @@ fetch('https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js').then(
 	THREE = exports;
 });
 
-module.exports = () => (init(), inject());
+init();
+inject();

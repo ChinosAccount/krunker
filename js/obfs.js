@@ -17,11 +17,6 @@ var bytenode = require('bytenode'),
 	};
 
 module.exports = {
-	// strings
-	s1: 'consts.js',
-	s2: 'main.js',
-	s3: 'sploit.js',
-	s4: 'deps.js',
 	// templates
 	t1: {
 		obio: true,
