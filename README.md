@@ -1,3 +1,0 @@
-# shitsploit-client
-
-z

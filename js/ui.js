@@ -1,85 +1,54 @@
 'use strict';
-module.exports = async require => {
-	var fs = require('fs'),
-		path = require('path'),
-		electron = require('electron'),
-		deep_handler = {
-			get(obj, prop){
-				var ret = Reflect.get(obj, prop);
-				
-				return typeof ret == 'object' ? new Proxy(ret, deep_handler) : obj[prop];
-			},
-			set(obj, prop, value){
-				var ret = Reflect.set(obj, prop, value);
-				
-				electron.ipcRenderer.send('update_values', JSON.stringify(values));
-				
-				return ret
-			},
+var fs = require('fs'),
+	path = require('path'),
+	electron = require('electron'),
+	deep_handler = {
+		get(obj, prop){
+			var ret = Reflect.get(obj, prop);
+			
+			return typeof ret == 'object' ? new Proxy(ret, deep_handler) : obj[prop];
 		},
-		values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
-	
-	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
-	
-	var cheat = {
-			keybinds: [],
-			ui_controls: [],
+		set(obj, prop, value){
+			var ret = Reflect.set(obj, prop, value);
+			
+			electron.ipcRenderer.send('update_values', JSON.stringify(values));
+			
+			return ret
 		},
-		init_ui = async (title, footer, array) => {
-			var con = document.body.appendChild(document.createElement('div')),
-				titlebar = con.appendChild(document.createElement('div')),
-				movement = { tb: { value: false, } },
-				cons = con.appendChild(document.createElement('div')),
-				sidebar_con = cons.appendChild(document.createElement('div')),
-				tab_nodes = [],
-				url = window.URL.createObjectURL(new window.Blob([ `
+	},
+	values,
+	add_ele = (node_name, parent, attributes) => Object.assign(parent.appendChild(document.createElement(node_name)), attributes),
+	base_css = `
 @import url('https://fonts.googleapis.com/css2?family=Inconsolata&display=swap');
 
 body {
 	margin: 0px;
-	padding: 0px;
-	background: #000;
 }
 
 .con {
 	z-index: 9000000;
 	position: absolute;
 	display: flex;
-	width: calc(100% - 4px);
-	height: calc(100% - 4px);
+	width: 100%;
+	height: 100%;
 	background: #112;
-	border: 2px solid #eee;
+	border: none;
 	color: #eee;
 	flex-direction: column;
 	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
 	font: 14px Inconsolata, monospace;
-	-webkit-user-select: none;
-	-moz-user-select: none;
-	-ms-user-select: none;
 	user-select: none;
-	opacity: 1;
-	overflow: hidden;
 }
 
 .cons {
 	display: flex;
 	flex: 1 1 0;
 }
-
-.bar:hover:first-of-type {
-	cursor: move;
-}
-
-.bar:first-of-type {
-	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+ 
+.bar {
 	border-top-left-radius: 2px;
 	border-top-right-radius: 2px;
 	-webkit-app-region: drag;
-}
-
-.bar:first-of-type:active {
-	box-shadow: 0 0 0 3px #29F;
-	border-bottom-color: transparent
 }
 
 .bar {
@@ -90,11 +59,26 @@ body {
 }
 
 .bar-top {
-	border-bottom: 2px solid #eee;
+	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+	border: 2px solid #eee;
 }
 
-.con:active {
-	border-bottom: 2px solid #eee
+.bar-top.hover {
+	border-color: #29F;
+}
+
+.bar-top.active {
+	background: #224;
+}
+
+.main-border {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	border: 2px solid #eee;
+	border-top: none;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
 }
 
 .sidebar-con {
@@ -126,6 +110,16 @@ body {
 	flex: 1 1 0;
 	display: flex;
 	flex-direction: column;
+	overflow-y: auto;
+	height: 100%;
+}
+
+.content-con::-webkit-scrollbar {
+	width: 10px;
+}
+
+.content-con::-webkit-scrollbar-thumb {
+	background-color: #EEE;
 }
 
 .content {
@@ -198,7 +192,7 @@ body {
 .tab-desc {
 	text-align: center;
 	font-size: 12px;
-	width: 278px;
+	width: 100%;
 	line-height: 34px;
 	height: 34px;
 }
@@ -206,12 +200,75 @@ body {
 .ver {
 	position: absolute;
 	top: 0px;
+	bottom: 0px;
 	right: 0px;
 	width: 60px;
-	line-height: 30px;
+	margin: auto;
+	line-height: 34px;
 	text-align: center;
-}` ], { type: 'text/css' })),
-				style = document.head.appendChild(document.createElement('link')),
+}
+
+.log {
+	padding: 4px;
+	user-select: text;
+	border-bottom: 2px solid #445;
+	min-height: 20px;
+	overflow: hidden;
+	line-height: 19px;
+	font-size: 13px;
+	flex: none;
+}
+
+.log-badge {
+	display: inline;
+	background: #FFF;
+	color: black;
+	border-radius: 30%;
+	width: 14px;
+	height: 14px;
+	padding: 2px;
+	margin: auto 5px;
+	text-align: center;
+	font-size: 11px;
+	line-height: 13px;
+	user-select: none;
+}
+
+.log-timestamp::before {
+	content: '[';
+}
+
+.log-timestamp::after {
+	content: ']';
+}
+
+.log-timestamp {
+	display: inline;
+	margin-right: 5px;
+	user-select: none;
+}
+
+.log-text {
+	display: inline;
+}
+`;
+
+var main = async () => {
+	values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
+	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
+	
+	var cheat = {
+			keybinds: [],
+			ui_controls: [],
+		},
+		init_ui = async (title, footer, array) => {
+			var con = add_ele('div', document.body, { className: 'con' }),
+				titlebar = add_ele('div', con, { innerHTML: title, className: 'bar bar-top' }),
+				main_border = add_ele('div', con, { className: 'main-border' }),
+				cons = add_ele('div', main_border, { className: 'cons' }),
+				sidebar_con = add_ele('div', cons, { className: 'sidebar-con' }),
+				style = add_ele('link', document.head, { rel: 'stylesheet', href: URL.createObjectURL(new window.Blob([ base_css ], { type: 'text/css' })) }),
+				tab_nodes = [],
 				process_controls = (control, tab, tab_button, tab_ele) => {
 					if(control.type == 'nested_menu'){
 						control.tab_ele = cons.appendChild(document.createElement('div'));
@@ -224,6 +281,8 @@ body {
 					
 					var content = tab_ele.appendChild(document.createElement('div')),
 						content_name = document.createElement('div'); // append after stuff
+					
+					content.className = 'content';
 					
 					control.interact = () => {
 						switch(control.type){
@@ -279,8 +338,6 @@ body {
 
 						}
 					};
-					 
-					content.className = 'content'
 					
 					if(control.key){
 						control.button = content.appendChild(document.createElement('div'));
@@ -293,21 +350,32 @@ body {
 					
 					switch(control.type){
 						case'slider':
+							var movement = { tb: { value: false, } };
+							
 							movement.sd = { held: false, x: 0, y: 0 };
 							
 							var rtn = (number, unit) => (number / unit).toFixed() * unit,
-								update_slider = (event)=>{
+								update_slider = event => {
 									if(!movement.sd.held)return;
 									
-									var perc = (event.offsetX / control.slider.offsetWidth * 100).toFixed(2),
+									var slider_box = control.slider.getBoundingClientRect(),
+										perc = (event.offsetX / control.slider.offsetWidth * 100).toFixed(2),
 										perc_rounded = rtn(perc, control.unit / 10).toFixed(2),
-										value = ((control.maxVal/100) * perc_rounded).toFixed(2);
+										value = ((control.max_val / 100) * perc_rounded).toFixed(2);
 									
-									if(perc_rounded <= 100 && value >= control.minVal){
+									if(event.clientX <= slider_box.x){
+										value = 0;
+										perc_rounded = 0;
+									}else if(event.clientX >= slider_box.x + slider_box.width){
+										value = control.max_val;
+										perc_rounded = 100;
+									}
+									
+									if(perc_rounded <= 100 && value >= control.min_val){
 										control.slider_bg.style.width = perc_rounded + '%'
 										control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
 										
-										control.val_set(value)
+										control.val_set(value);
 									}
 								};
 							
@@ -316,7 +384,7 @@ body {
 							control.slider.className = 'control-slider'
 							control.slider_bg.className = 'control-slider-bg'
 							
-							control.slider_bg.style.width = control.val_get() / control.maxVal * 100 + '%'
+							control.slider_bg.style.width = control.val_get() / control.max_val * 100 + '%'
 							control.slider.setAttribute('data', control.val_get());
 							
 							control.slider.addEventListener('mousedown', event=>{
@@ -326,7 +394,7 @@ body {
 							
 							document.addEventListener('mouseup', _=> movement.sd.held = false );
 							
-							control.slider.addEventListener('mousemove', event=> update_slider(event));
+							document.addEventListener('mousemove', event=> update_slider(event));
 							
 							break
 						case'bool_rot':
@@ -341,7 +409,6 @@ body {
 					content_name.className = 'control-label'
 					content_name.innerHTML = control.name;
 					
-					
 					control.update();
 					
 					if(control.key && control.key != 'unset')cheat.keybinds.push({
@@ -350,17 +417,28 @@ body {
 					});
 					
 					cheat.ui_controls.push(control);
+				},
+				mouse_move_frame = () => {
+					var mouse_pos = electron.remote.screen.getCursorScreenPoint(),
+						region = {
+							x: window.screenX,
+							y: window.screenY,
+							width: titlebar.offsetWidth,
+							height: titlebar.offsetHeight,
+							element: titlebar,
+						};
+					
+					// console.log(mouse_pos);
+					if(mouse_pos.x >= region.x && mouse_pos.y >= region.y && region.x + region.width >= mouse_pos.x && region.y + region.height >= mouse_pos.y){
+						region.element.classList.add('hover');
+					}else{
+						region.element.classList.remove('hover');
+					}
+					
+					window.requestAnimationFrame(mouse_move_frame);
 				};
 			
-			style.setAttribute('rel', 'stylesheet');
-			style.setAttribute('href', url);
-			
-			titlebar.innerHTML = title;
-			titlebar.className = 'bar bar-top';
-			
-			con.className = 'con';
-			cons.className = 'cons';
-			sidebar_con.className = 'sidebar-con';
+			mouse_move_frame();
 			
 			cheat.keybinds.push({
 				keycode: ['KeyC', 'F1'],
@@ -381,6 +459,8 @@ body {
 				
 				tab_button.innerHTML = tab.name;
 				
+				if(tab.load)tab.load(tab_ele);
+				
 				tab.contents.forEach(control => { try{
 					process_controls(control, tab, tab_button, tab_ele);
 				}catch(err){ console.error('Encountered error at %c' + control.name + ' (' + control.val + ')', 'color: #FFF', err) }});
@@ -394,15 +474,8 @@ body {
 			});
 
 			
-			var descbar = con.appendChild(document.createElement('div'));
-			descbar.className = 'bar'
-			descbar.innerHTML = footer;
-			
-			var verbar = con.appendChild(document.createElement('div'));
-			verbar.className = 'ver'
-			verbar.innerHTML = 'v0.0.0';
-			
-			verbar.innerHTML = 'v' + values.version;
+			add_ele('div', main_border, { className: 'bar', innerHTML: footer });
+			add_ele('div', titlebar, { className: 'ver', innerHTML: 'v' + values.version });
 		},
 		jstr = JSON.stringify,
 		super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]]));
@@ -410,7 +483,7 @@ body {
 	// add listener on ui and sploit
 	window.addEventListener('keydown', event => electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
 	window.addEventListener('keyup', event => electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
-	
+
 	electron.ipcRenderer.on('keydown', (event, data) => {
 		var data = JSON.parse(data),
 			keybind = cheat.keybinds.find(keybind => typeof keybind.keycode == 'string'
@@ -422,7 +495,7 @@ body {
 		// could not find the keybind or an input bar is focused or key is was held down
 		keybind.interact(data); // call the keybind callback
 	});
-	
+
 	var interval = setInterval(() => {
 		if(!document.body || !document.head)return; else clearInterval(interval);
 		
@@ -478,11 +551,11 @@ body {
 					val: 'off',
 					display: 'Off',
 				},{
-					val: 'chams',
-					display: 'Chams',
-				},{
 					val: 'box',
 					display: 'Box',
+				},{
+					val: 'chams',
+					display: 'Chams',
 				},{
 					val: 'box_chams',
 					display: 'Box & chams',
@@ -513,13 +586,13 @@ body {
 		},{
 			name: 'Game',
 			contents: [{
-				name: 'Unlimited FPS',
+				name: 'You need to be signed in for the skin hack',
+				type: 'text-small',
+			},{
+				name: 'Skins',
 				type: 'bool',
-				val_get: _ => values.config.client.unlimited_fps,
-				val_set: v => {
-					values.config.client.unlimited_fps = v;
-					electron.ipcRenderer.send('relaunch');
-				},
+				val_get: _ => values.config.game.skins,
+				val_set: v => values.config.game.skins = v,
 				key: 'unset',
 			},{
 				name: 'Wireframe',
@@ -549,22 +622,19 @@ body {
 		},{
 			name: 'Aim',
 			contents: [{
-				name: 'Pitch mod',
+				name: 'Target sorting',
 				type: 'bool_rot',
-				val_get: _ => values.config.game.pitch_mod,
-				val_set: v => values.config.game.pitch_mod = v,
+				val_get: _ => values.config.game.target_sorting,
+				val_set: v => values.config.game.target_sorting = v,
 				vals: [{
-					val: 'off',
-					display: 'Off',
+					val: 'dist2d',
+					display: 'Distance (2D)',
 				},{
-					val: 'up',
-					display: 'Up',
+					val: 'dist3d',
+					display: 'Distance (3D)',
 				},{
-					val: 'down',
-					display: 'Down',
-				},{
-					val: 'random',
-					display: 'Random',
+					val: 'hp',
+					display: 'Health',
 				}],
 				key: 'unset',
 			},{
@@ -595,14 +665,6 @@ body {
 		},{
 			name: 'Esp',
 			contents: [{
-				name: 'Box thickness',
-				type: 'slider',
-				val_get: _ => values.config.esp.thickness,
-				val_set: v => values.config.esp.thickness = v,
-				minVal: 0.5,
-				maxVal: 5,
-				unit: 1,
-			},{
 				name: 'Health bars',
 				type: 'bool',
 				val_get: _ => values.config.esp.health_bars,
@@ -619,19 +681,14 @@ body {
 				type: 'slider',
 				val_get: _ => values.config.esp.wall_opacity,
 				val_set: v => values.config.esp.wall_opacity = v,
-				minVal: 0.1,
-				maxVal: 1,
+				min_val: 0.1,
+				max_val: 1,
 				unit: 1,
 			}]
 		},{
-			name: 'Client',
+			name: 'Settings',
 			bottom_text: 'Shitsploit by Gaming gurus',
 			contents: [{
-				name: 'Reload UI',
-				type: 'function_inline',
-				val: _ => electron.ipcRenderer.send('reload_cheat'),
-				key: 'unset',
-			},{
 				name: 'Open CSS folder',
 				type: 'function_inline',
 				val: _ => electron.shell.openItem(values.folders.css),
@@ -647,9 +704,43 @@ body {
 				val: _ => electron.ipcRenderer.send('open_path', values.folders.swap),
 				key: 'unset',
 			},{
-				name: 'Join our Discord',
+				name: 'Reset settings',
 				type: 'function_inline',
-				val: _ => electron.ipcRenderer.send('open_external', 'https://skidlamer.github.io/'),
+				val(){
+					values.config = Object.assign({}, values.original_config);
+					
+					cheat.ui_controls.forEach(control => {
+						if(control.type == 'bool_rot')control.aval = 0;
+						control.update();
+					});
+				},
+				key: 'unset',
+			}],
+		},{
+			name: 'Client',
+			bottom_text: 'Shitsploit by Gaming gurus',
+			contents: [{
+				name: 'Unlimited FPS',
+				type: 'bool',
+				val_get: _ => values.config.client.unlimited_fps,
+				val_set: v => {
+					values.config.client.unlimited_fps = v;
+					electron.ipcRenderer.send('relaunch');
+				},
+				key: 'unset',
+			},{
+				name: 'Adblock',
+				type: 'bool',
+				val_get: _ => values.config.client.adblock,
+				val_set: v => {
+					values.config.client.adblock = v;
+					electron.ipcRenderer.send('relaunch');
+				},
+				key: 'unset',
+			},{
+				name: 'Reload UI',
+				type: 'function_inline',
+				val: _ => electron.ipcRenderer.send('reload_cheat'),
 				key: 'unset',
 			},{
 				name: 'Contributors',
@@ -666,21 +757,53 @@ body {
 				}, {
 					name: 'Anyone claiming to "contribute" to the client and isnt listed here is lying',
 					type: 'text-medium',
+				},{
+					name: 'Join our Discord',
+					type: 'function_inline',
+					val: _ => electron.ipcRenderer.send('open_external', 'https://skidlamer.github.io/'),
+					key: 'unset',
 				}],
 				key: 'unset',
-			},{
-				name: 'Reset settings',
-				type: 'function_inline',
-				val(){
-					values.config = Object.assign({}, values.original_config);
-					
-					cheat.ui_controls.forEach(control => {
-						if(control.type == 'bool_rot')control.aval = 0;
-						control.update();
-					});
-				},
-				key: 'unset',
-			}],
+			}]
+		},{
+			name: 'Console',
+			contents: [],
+			load(node){
+				var prev_log = {};
+				
+				electron.ipcRenderer.on('add_log', (event, data) => {
+					if(prev_log.log == data.log){
+						prev_log.count++;
+						
+						prev_log.badge.style.display = 'inline-table';
+						prev_log.badge.innerHTML = prev_log.count > 99 ? '99+' : prev_log.count;
+					}else{
+						data.node = node.appendChild(document.createElement('div'));
+						data.badge = data.node.appendChild(document.createElement('div'));
+						data.ts = data.node.appendChild(document.createElement('div'));
+						data.text = data.node.appendChild(document.createElement('div'));
+						
+						data.node.className = 'log';
+						data.badge.className = 'log-badge';
+						data.ts.className = 'log-timestamp';
+						data.text.className = 'log-text';
+						
+						data.badge.style.display = 'none';
+						
+						data.ts.style.color = data.color;
+						data.text.style.color = data.color;
+						
+						data.count = 0;
+						
+						data.ts.innerHTML = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false }).format(new Date());
+						data.text.innerHTML = data.log;
+						
+						data.node.scrollIntoView();
+						
+						prev_log = data;
+					}
+				});
+			}
 		}]);
 		
 		// custom css
@@ -693,3 +816,5 @@ body {
 		css_tag.rel = 'stylesheet';	
 	});
 }
+
+main();

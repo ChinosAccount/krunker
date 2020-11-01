@@ -1,10 +1,8 @@
 'use strict';
-
-global.require = require;
-
 require('v8-compile-cache');
 var fs = require('fs'),
 	os = require('os'),
+	url = require('url'),
 	url = require('url'),
 	path = require('path'),
 	util = require('util'),
@@ -13,11 +11,19 @@ var fs = require('fs'),
 	shortcut = require('electron-localshortcut'),
 	sploit_folder = path.join(os.homedir(), 'Documents', 'shitsploit'),
 	setup_win = options => {
-		var conf = { center: true, acceptFirstMouse: true, title: 'Shitsploit Client', ...options, show: false },
+		var conf = {
+				center: true,
+				acceptFirstMouse: true,
+				title: 'Shitsploit Client',
+				...options,
+				show: false,
+				devTools: (values.consts.ss_dev || values.consts.ss_dev_debug) ? true : false,
+				v8CacheOptions: 'code',
+			},
 			win = new electron.BrowserWindow(conf);
 		
 		// show after 1.5s if it hasnt already
-		setTimeout(() => !win.isVisible() && win.show(), 1500);
+		setTimeout(() => win && !win.isVisible() && win.show(), 1500);
 		
 		win.once('ready-to-show', () => {
 			if(values.consts.ss_dev_debug)win.webContents.openDevTools({ mode: 'undocked' });
@@ -27,6 +33,13 @@ var fs = require('fs'),
 		win.on('page-title-updated', event => event.preventDefault());
 		
 		win.on('closed', () =>  win = null);
+		
+		win.webContents.on('devtools-opened', event => {
+			if(!values.consts.ss_dev && !values.consts.ss_dev_debug){
+				event.preventDefault();
+				win.webContents.closeDevTools();
+			}	
+		});
 		
 		return win;
 	},
@@ -53,7 +66,6 @@ var fs = require('fs'),
 				tracers: false,
 				health_bar: false,
 				wall_opacity: 0.6,
-				thickness: 2,
 				walls: false,
 			}, game: {
 				bhop: 'off',
@@ -62,15 +74,19 @@ var fs = require('fs'),
 				overlay: false,
 				wireframe: false,
 				auto_respawn: false,
+				skins: true,
+				freecam: false,
 			}, aim: {
 				status: 'off',
 				target: 'head',
+				target_sorting: 'dist2d',
 				frustrum_check: false,
 				auto_reload: false,
 				wallbangs: false,
 				target_ais: true,
 			}, client: {
 				unlimited_fps: true,
+				adblock: true,
 			},
 		},
 	},
@@ -89,8 +105,8 @@ var fs = require('fs'),
 			height: 157,
 		},
 		cheat: {
-			width: 404,
-			height: 366,
+			width: 400,
+			height: 400,
 		},
 	},
 	valid_json = data => { try { return JSON.parse(data) } catch(err) { return false } },
@@ -144,7 +160,7 @@ var fs = require('fs'),
 					transparent: true,
 					center: true,
 					webPreferences: {
-						nodeIntegration: true,	
+						nodeIntegration: true,
 					},
 					parent: wins.game,
 				});
@@ -276,7 +292,7 @@ var fs = require('fs'),
 				height: electron.screen.getPrimaryDisplay().size.height * 0.75,
 				backgroundColor: '#000',
 				thickFrame: true,
-				webPreferences: { enableRemoteModule: true, preload: path.join(values.consts.app_dir, 'preload.js') },
+				webPreferences: { preload: path.join(values.consts.app_dir, 'preload.js') },
 			});
 			
 			electron.session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
@@ -286,8 +302,6 @@ var fs = require('fs'),
 			
 			wins.game.setMenu(null);
 			wins.game.loadURL('https://krunker.io', { userAgent: values.useragent });
-			
-			if(!values.consts.ss_dev && !values.consts.ss_dev_debug)wins.game.webContents.on('devtools-opened', () => (wins.game.webContents.closeDevTools(), electron.app.quit()));
 			
 			wins.game.webContents.on('new-window', nav);
 			wins.game.webContents.on('will-navigate', nav);
@@ -380,25 +394,24 @@ var fs = require('fs'),
 				y: wins.game.getPosition()[1] + (wins.game.getSize()[1] / 2) - (328 / 2),
 				frame: false,
 				resizable: false,
-				transparent: false,
+				transparent: true,
+				minimizable: false,
+				maximizable: false,
 				shadow: false,
-				backgroundColor: '#000',
-				webPreferences: { nodeIntegration: true },
+				titleBarStyle: {
+					customButtonsOnHover: true,
+				},
+				webPreferences: { enableRemoteModule: true, nodeIntegration: true },
 				parent: os.type != 'Linux' ? wins.game : void'',
 				alwaysOnTop: os.type == 'Linux' ? true : void'',
 				title: 'Shitsploit UI',
 			});
 			
-			// wins.sploit.on('maximize', () => wins.sploit.unmaximize());
+			wins.sploit.on('focus', () => wins.sploit.setOpacity(values.ui_visible ? 1 : 0));
 			
-			wins.sploit.on('focus', () => wins.sploit.setOpacity(1));
+			wins.sploit.on('blur', () => wins.sploit.setOpacity(values.ui_visible ? 0.75 : 0));
 			
-			wins.sploit.on('blur', () => wins.sploit.setOpacity(0.75));
-			
-			wins.sploit.once('closed', () => {
-				wins.sploit = null;
-				electron.app.quit();
-			});
+			wins.sploit.once('closed', () => (wins.sploit = null, electron.app.quit()));
 			
 			wins.sploit.loadURL('data:text/html,' + encodeURIComponent(html.ui));
 			
@@ -414,8 +427,8 @@ var fs = require('fs'),
 						var obfs = require(values.consts.obfs),
 							ui_ob = obfs.o('ui.js', obfs.t4);
 						
-						require(values.consts.ss_dev ? path.join(values.consts.js_dir, 'ui.js') : path.join(values.consts.app_dir, 'ui.jsc'))(require);
-					}else require(path.join(values.consts.app_dir, 'ui.jsc'))(require);
+						require(values.consts.ss_dev ? path.join(values.consts.js_dir, 'ui.js') : path.join(values.consts.app_dir, 'ui.jsc'));
+					}else require(path.join(values.consts.app_dir, 'ui.jsc'));
 				`);
 			});
 		},
@@ -620,17 +633,20 @@ electron.app.once('ready', () => {
 		
 		if(!wins.sploit)return;
 		
-		wins.sploit.setResizable(true);
-		wins.sploit.setSize(sizes.cheat.width, values.ui_visible ? sizes.cheat.height: 40);
-		wins.sploit.setResizable(false);
-		
-		// wins.sploit.setIgnoreMouseEvents(!values.ui_visible);
+		wins.sploit.setIgnoreMouseEvents(!values.ui_visible);
+		wins.sploit.setOpacity(values.ui_visible ? 1 : 0);
 	});
 	
 	electron.ipcMain.on('open_path', (event, data) => electron.shell.openPath(data));
 	electron.ipcMain.on('open_external', (event, data) => electron.shell.openExternal(data));
 	electron.ipcMain.on('relaunch', (event, data) => (electron.app.relaunch(), electron.app.quit()));
 	electron.ipcMain.on('reload_cheat', () => wins.sploit && wins.sploit.reload());
+	
+	electron.ipcMain.on('add_log', (event, data) => {
+		if(!wins.sploit)return;
+		
+		wins.sploit.webContents.send('add_log', data);
+	});
 	
 	electron.ipcMain.handle('sync_values', () => JSON.stringify(values));
 	electron.ipcMain.on('update_values', (event, data) => {
@@ -640,6 +656,25 @@ electron.app.once('ready', () => {
 		if(wins.game)wins.game.webContents.send('receive_values', JSON.stringify(values));
 		
 		update_config();
+	});
+	
+	// adblock
+	var netb = [
+		'​/tagmanager/pptm.',
+		'cpmstar.com',
+		'pub.network',
+		'googlesyndication.com',
+		'googletagmanager.com',
+		'xoplatform/logger/api/logger',
+		'twitter.com/widgets.js'
+	];
+	
+	electron.session.defaultSession.webRequest.onBeforeRequest({ urls: [ '*://*/*' ] }, (details, callback) => {
+		var furl = url.parse(details.url);
+		
+		if(values.config.client.adblock && netb.some(reg => reg.constructor == String ? details.url.includes(reg) : reg.test(details.url)))callback({ cancel: true });
+		else callback({});
+		
 	});
 });
 
