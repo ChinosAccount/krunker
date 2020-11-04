@@ -84,9 +84,17 @@ var fs = require('fs'),
 				auto_reload: false,
 				wallbangs: false,
 				target_ais: true,
+				smooth: false,
 			}, client: {
 				unlimited_fps: true,
 				adblock: true,
+			}, kb: {
+				aim: 3,
+				bhop: 4,
+				esp: 5,
+				tracers: 6,
+				nametags: 7,
+				overlay: 8,
 			},
 		},
 	},
@@ -407,9 +415,9 @@ var fs = require('fs'),
 				title: 'Shitsploit UI',
 			});
 			
-			wins.sploit.on('focus', () => wins.sploit.setOpacity(values.ui_visible ? 1 : 0));
+			wins.sploit.on('focus', () => (wins.sploit.focused = true, wins.sploit.setOpacity(values.ui_visible ? 1 : 0)));
 			
-			wins.sploit.on('blur', () => wins.sploit.setOpacity(values.ui_visible ? 0.75 : 0));
+			wins.sploit.on('blur', () =>  (wins.sploit.focused = false, wins.sploit.setOpacity(values.ui_visible ? 0.75 : 0)));
 			
 			wins.sploit.once('closed', () => (wins.sploit = null, electron.app.quit()));
 			
@@ -634,7 +642,7 @@ electron.app.once('ready', () => {
 		if(!wins.sploit)return;
 		
 		wins.sploit.setIgnoreMouseEvents(!values.ui_visible);
-		wins.sploit.setOpacity(values.ui_visible ? 1 : 0);
+		wins.sploit.setOpacity(values.ui_visible ? wins.sploit.focused ? 1 : 0.75 : 0);
 	});
 	
 	electron.ipcMain.on('open_path', (event, data) => electron.shell.openPath(data));

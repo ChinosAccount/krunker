@@ -1,26 +1,24 @@
 'use strict';
 var fs = require('fs'),
 	path = require('path'),
-	util = require('util'),
-	electron = require('electron'),
-	events = require('events'),
-	url = require('url'),
 	cheat = {},
+	n = { Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)) },
 	uhook = (orig_func, handler) => {
-		var func = function(...args){
-			return Reflect.apply(handler, this, [orig_func, this, args]);
-		};
+		var func = Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, Object.getOwnPropertyDescriptors(orig_func));
 		
-		func.toString = Reflect.apply(Function.prototype.bind, orig_func.toString, [orig_func]);
-		Reflect.defineProperty(func.toString, 'name', { get: _ =>  orig_func.toString.name });
-		Reflect.defineProperty(func, 'length', { get: _ => orig_func.length });
-		func.__lookupGetter__ = func.toString.__lookupGetter__ = function(...args){ try{ Reflect.apply(orig_func, this, args) }catch(err){ throw err } }
-		func.toString.__lookupGetter__.toString = Function.prototype.bind.apply(func.toString.__lookupGetter__.toString, [orig_func.__lookupGetter__]);
+		n.Reflect.defineProperty(func, 'length', { value: orig_func.length, configurable: true, enumerable: false, writable: false });
+		n.Reflect.defineProperty(func, 'name', { value: orig_func.name, configurable: true, enumerable: false, writable: false });
+		func.toString = n.Reflect.apply(n.Function_prototype.bind, orig_func.toString, [orig_func]);
+		func.toString.toString = orig_func.toString.toString;
+		
+		// function prototype usually undefined or void
+		func.prototype = orig_func.prototype;
 		
 		return func
 	},
 	init = async () => {
-		var values = await electron.ipcRenderer.invoke('sync_values').then(JSON.parse),
+		var electron = require('electron'),
+			values = await electron.ipcRenderer.invoke('sync_values').then(JSON.parse),
 			config = values.config; // assign it too lazy to rewrite all stuff
 		
 		electron.ipcRenderer.on('receive_values', (event, data) => {
@@ -29,7 +27,7 @@ var fs = require('fs'),
 		});
 		
 		cheat = {
-			event: new events(),
+			event: new (require('events'))(),
 			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
 			vars: [],
@@ -56,7 +54,7 @@ var fs = require('fs'),
 			}),
 			materials_esp: new Proxy({}, {
 				get(target, prop){
-					if(!target[prop])target[prop] = new cheat.THREE.MeshBasicMaterial({
+					if(!target[prop])target[prop] = new cheat.three.MeshBasicMaterial({
 						transparent: true,
 						fog: false,
 						depthTest: false,
@@ -110,7 +108,7 @@ var fs = require('fs'),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
-				try{ return Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
+				try{ return n.Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
 			},
 			find_match: async () => {
 				if(cheat.finding_match)return;
@@ -251,13 +249,15 @@ var fs = require('fs'),
 							y: cheat.round(yDire % (Math.PI * 2), 3),
 						};
 					
+					cheat.game.config.inc_deltaMlt += 0.2;
+					
 					if(!rot.x)rot.x = 0;
 					if(!rot.y)rot.y = 0;
 					
 					// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
-					if((config.aim.status == 'silent' || config.aim.status == 'full') && (!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)))data[keys.shoot] = 1;
+					if((config.aim.status == 'silent' || config.aim.status == 'full') && (!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)))cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
-					switch(config.aim.status){
+					var set_rot = rot => { switch(config.aim.status){
 						case'silent':
 							// dont shoot if weapon is on shoot cooldown
 							if(cheat.player.weapon.nAuto && cheat.player[cheat.vars.didShoot])data[keys.shoot] = data[keys.scope] = 0;
@@ -289,7 +289,23 @@ var fs = require('fs'),
 							}
 							
 							break
-					}
+					} };
+		
+					// create new tween if previous tween wasnt playing or there wasn't previous tween
+					if(config.aim.smooth && (!cheat.tt || !cheat.tt._isPlaying))cheat.tt = new TWEEN.Tween({
+						x: data[keys.xdir] / 1000,
+						y: data[keys.ydir] / 1000,
+					}).onUpdate(set_rot).easing(TWEEN.Easing.Quadratic.Out);
+					/*else if(cheat.tt)cheat.tt._valuesStart = {
+						x: data[keys.xdir] / 1000,
+						y: data[keys.ydir] / 1000,
+					};*/
+					
+					if(config.aim.smooth){
+						cheat.tt.to({ x: rot.x, y: rot.y }, 60);
+						
+						if(!cheat.tt._isPlaying)cheat.tt.start();
+					}else set_rot({ x: rot.x, y: rot.y });
 				}
 			},
 			process(){ try{
@@ -350,7 +366,7 @@ var fs = require('fs'),
 					
 					if(ent.weapon && !ent.weapon[cheat.symbols.org_zoom])ent.weapon[cheat.symbols.org_zoom] = ent.weapon.zoom;
 					
-					if(ent.weapon && !ent.weapon[cheat.symbols.zoom])ent.weapon[cheat.symbols.zoom] = Reflect.defineProperty(ent.weapon, 'zoom', {
+					if(ent.weapon && !ent.weapon[cheat.symbols.zoom])ent.weapon[cheat.symbols.zoom] = n.Reflect.defineProperty(ent.weapon, 'zoom', {
 						get: _ => config.game.no_zoom ? 1 : ent.weapon[cheat.symbols.org_zoom],
 						set: n => ent.weapon._zoom = n,
 					});
@@ -565,7 +581,6 @@ var fs = require('fs'),
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
 				['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
 				['inView', /continue;if\(\S+\['\S+']\|\|!\S+\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 2],
-				['camera', /\['(\w+)'\]=new q\['Object3D'\]\(\),this\['\1'\]/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
@@ -593,10 +608,7 @@ var fs = require('fs'),
 				// get vars
 				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
 				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
-				[/((\w+)\['exports']\['enableHttps']=\w+\['exports']\['isProd'])/g, 'ssd.gconfig = $2.exports, $1'],
 				[/(this\['\w+']=function\(\w+,\w+,\w+,\w+\){)(this\['recon'])/, '$1 { ssd.procInputs(...arguments) }; $2'],
-				[/(function\(\w+,\w+,\w+\){'use strict';)(\w+\['\w+']\(\w+\),\w+\['\w+']\(\w+,'ACESFilmicToneMapping)/, '$1 ssd.THREE = a1; $2'],
-				[/(\w+\['exports'])=({'ahNum':)/g, '$1 = ssd.ws = $2'],
 				
 				// have a proper interval for rendering
 				[/requestAnimFrame\(/g, 'ssd.frame(requestAnimFrame, '],
@@ -608,228 +620,29 @@ var fs = require('fs'),
 				
 				[/(\w+)\['skins'](?!=)/g, 'ssd.skin($1)'],
 				
-				[/aHolder\['style']\['display']/, 'aHolder.style.piss']
-				
-				// [/(function\(\w,\w,(\w)\){)'use strict';(\(function\((\w)\){)\//, '$1$3 ssd.exports = $2.c; ssd.modules = $2.m;/'],
+				[/aHolder\['style']\['display']/, 'aHolder.style.piss'],
 			]),
 			storage: {
-				/* modules: [],
-				exports: [], */
 				skins: [...new Uint8Array(5e3)].map((a, i) => ({ ind: i, cnt: 100 })),
 				get config(){ return config },
 				get player(){ return cheat.player || { weapon: {} } },
 				get target(){ return cheat.target || {} },
 				set THREE(nv){
-					cheat.THREE = nv;
+					cheat.three = nv;
 				},
 				set __webpack_require__(nv){
 					cheat.__webpack_require__ = nv;
 					
-					cheat.wf(() => cheat.__webpack_require__.c).then(exports => {
-						var any = Symbol(),
-							search = {
-								deps: {
-									three: {
-										Vector3: any,
-										Box3: any,
-										Line3: any,
-									},
-									buffer_require: {
-										Buffer: any,
-										INSPECT_MAX_BYTES: 50,
-									},
-									stream: {
-										copy: any,
-										slice: any,
-										toString: any,
-										write: any,
-									},
-									audio_codec: {
-										createCodec: any,
-										install: any,
-										preset: any,
-									},
-									buffer_extension: {
-										ExtBuffer: any,
-									},
-									buffer: {
-										from: any,
-										alloc: any,
-										allocUnsafe: any,
-										isBuffer: any,
-										isEncoding: any,
-										TYPED_ARRAY_SUPPORT: true,
-									},
-								},
-								game: {
-									util: {
-										getAnglesSSS: any,
-										hexToRGB: any,
-										keyboardMap: any
-									},
-									config: {
-										isNode: any,
-										isComp: any,
-										isProd: any,
-										kickTimer: any
-									},
-									ws: {
-										sendQueue: any,
-										socketId: any,
-										connect: any,
-										ahNum: any,
-									},
-									overlay: {
-										render: any,
-										canvas: any,
-									},
-									colors: {
-										challLvl: any,
-										getChallCol: any,
-										premium: any,
-										partner: any,
-									},
-									sprays: {
-										0: { name: 'Krunker', id: 0, opacity: 0.6, },
-									},
-									swears: {
-										array: any,
-										object: any,
-										regex: any,
-									},
-									swears_object: {
-										bitch: 1,
-										biatch: 1,
-										boobs: 1,
-									},
-									swears_array: {
-										0: '4r5e',
-										1: '5h1t',
-									},
-									ui: {
-										loading: any,
-										menu2: any,
-									},
-									shop: {
-										purchases: any,
-										wheels: any,
-										events: any,
-										freeKR: any,
-									},
-									game_manager: {
-										GameObject: any,
-										manager: any,
-									},
-									player_manager: {
-										Player: any,
-										manager: any,
-									},
-									map_manager: {
-										maps: any,
-										manager: any,
-									},
-									map_objs: {
-										generateCone: any,
-										colorize: any,
-									},
-									gamemodes: {
-										0: { id: 'ffa', name: 'Free for All', alias: 'ffa' },
-									},
-									scope_dots: {
-										0: { name: 'Red Dot', id: 0, opacity: null },
-									},
-								},
-								fake_node: {
-									process: {
-										addListener: any,
-										argv: any,
-										title: 'browser',
-									},
-								},
-								maps: {
-									'Burg': { name: 'Burg' },
-									'Newtown': { name: 'Newtown' },
-									'Evacuation': { name: 'Evacuation' },
-									'Citadel': { name: 'Citadel' },
-									'Oasis': { name: 'Oasis' },
-									'Kanji': { name: 'Kanji' },
-									'Industry': { name: 'Industry' },
-									'Soul Sanctum': { name: 'Soul Sanctum' },
-									'Lostworld': { name: 'Lostworld' },
-									'Freight': { name: 'Freight' },
-									'Shipyard': { name: 'Freight' },
-									'Undergrowth': { name: 'Undergrowth' },
-									'Shipyard': { name: 'Freight' },
-									'Subzero': { name: 'Subzero' },
-									'Sandstorm': { name: 'Sandstorm' },
-									'Littletown': { name: 'Littletown' },
-									'Shipyard': { name: 'Shipyard' },
-								},
-							},
-							found = {};
-						
-						Object.values(exports).forEach(ex => {
-							Object.entries(search).forEach(([ folder, searches ]) => {
-								Object.entries(searches).forEach(([ label, find ]) => {
-									var scan_vals = ([ find_label, find_val, obj ]) => {
-										if(obj && obj.encode && obj.decode)console.log(obj);
-										
-										var found = obj[find_label];
-										
-										if(!found)return false;
-										
-										if(find_val == any)find_val = found;
-										
-										var founded = false;
-										if(typeof find_val == 'object')Object.entries(find_val).forEach(([ label, value ]) => {
-											var founde = found[label];
-											
-											if(value == any)value = founde;
-											
-											if(founde == value)founded = true;
-										});
-										
-										var circ = obj => {
-											var cache = [],
-												ret;
-											
-											if(obj.constructor.name == 'Window')return {};
-											
-											try{
-												ret = JSON.stringify(obj, (key, value) => {
-													if(typeof value == 'object' && value){
-														if(cache.indexOf(value) != -1)return;
-														cache.push(value);
-													}
-													
-													return value;
-												});
-											}catch(err){ ret = err; }
-											
-											return ret;
-										};
-										
-										try{
-											if(circ(found) == circ(find_val))founded = true;
-											return founded || typeof find_val == typeof found && found == find_val;
-										}catch(err){
-											cheat.err(err);
-											
-											return false;
-										}
-									}
-									
-									if(!found[folder])found[folder] = {};
-									
-									if(!Object.entries(find).some(sd => !scan_vals([...sd, ex.exports])))found[folder][label] = ex.exports;
-								});
-							});
-							
-							// if(Object.values(found).some(found => !Object.values(found).some(val => val == ex.exports)))console.log(ex.exports);
-						});
-
-						console.log(found);
-					});
+					cheat.wf(() => cheat.__webpack_require__.c).then(exports => Object.entries({
+						three: ['Box3', 'Vector3', 'Line3'],
+						util: ['getAnglesSSS', 'hexToRGB', 'keyboardMap'],
+						gconfig: [ 'isNode', 'isComp', 'isProd', 'kickTimer'],
+						ws: ['ahNum', 'connected', 'socketId', 'sendQueue', 'trackPacketStats'],
+						overlay: ['render', 'canvas'],
+						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
+						ui: ['loading', 'menu2'],
+						shop: ['purchases', 'wheels', 'events', 'freeKR'],
+					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).map(mod => mod.exports).forEach(exp => (entries.some(entry => n.Reflect.apply(Object.prototype.hasOwnProperty, exp, [ entry ])) && (cheat[label] = exp)))));
 				},
 				set game(nv){
 					cheat.game = nv;
@@ -837,22 +650,12 @@ var fs = require('fs'),
 				set world(nv){
 					cheat.world = nv;
 				},
-				set gconfig(nv){
-					cheat.gconfig = nv;
-				},
-				set ws(nv){
-					cheat.ws = nv;
-				},
-				set gconfig(nv){
-					cheat.gconfig = nv;
-				},
 				skin(player){
 					return config.game.skins ? cheat.storage.skins : player.skins;
 				},
 				frame(frame, func){
 					cheat.player = cheat.game ? cheat.game.players.list.find(player => player[cheat.vars.isYou]) : null;
 					cheat.controls = cheat.game ? cheat.game.controls : null;
-					cheat.ws = cheat.storage.ws;
 					
 					if(cheat.world)cheat.world.scene.onBeforeRender = cheat.process;
 					cheat.render();
@@ -862,9 +665,7 @@ var fs = require('fs'),
 					if(cheat.ws && !cheat.ws[cheat.symbols.hooked]){
 						cheat.ws[cheat.symbols.hooked] = true;
 						
-						cheat.ws.send = uhook(cheat.ws.send, (target, thisArg, [label, data, ...args]) => {
-							var argArray = [label, data, ...args];
-							
+						cheat.ws.send = uhook(cheat.ws.send, (target, thisArg, [label, ...data]) => {
 							switch(label){
 								case'ent':
 			 						cheat.skin_conf = {
@@ -880,7 +681,7 @@ var fs = require('fs'),
 							}
 							
 							
-							return Reflect.apply(target, thisArg, [label, data, ...args]);
+							return n.Reflect.apply(target, thisArg, [label, ...data]);
 						});
 						
 						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, thisArg, argArray) => {
@@ -901,14 +702,14 @@ var fs = require('fs'),
 								}
 							}
 							
-							return Reflect.apply(target, thisArg, argArray);
+							return n.Reflect.apply(target, thisArg, argArray);
 						});
 					}	
 					
 					try{
-						return Reflect.apply(frame, window, [(...args) => {
+						return n.Reflect.apply(frame, window, [(...args) => {
 							try{
-								return Reflect.apply(func, window, args);
+								return n.Reflect.apply(func, window, args);
 							}catch(err){
 								cheat.err(err);
 								return true;
@@ -925,10 +726,10 @@ var fs = require('fs'),
 					switch(data){
 						case'injected':
 							
-							cheat.wf(() => cheat.game).then(() => {
-								cheat.event.game = cheat.game;
+							cheat.wf(() => cheat.game).then(game => {
+								cheat.event.game = game;
 								cheat.event.players = cheat.game.players.list;
-								cheat.event.emit('game-load', cheat.game)
+								cheat.event.emit('game-load', game)
 							});
 							
 							cheat.log('injected to game');
@@ -959,6 +760,12 @@ var fs = require('fs'),
 		});
 		
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
+		
+		window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
+		window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
+		
+		// clear all inputs when window is not focused
+		window.addEventListener('blur', () => cheat.inputs = []);
 		
 		// remove later
 		window.cheese = cheat;
@@ -1012,8 +819,9 @@ var fs = require('fs'),
 				button.innerHTML = 'Find game';
 			}, 7500);
 			
-			var clean_func = func => new Proxy(()=>{}, { apply: (bad_func, ...args) => Reflect.apply(func, ...args) }),
+			var clean_func = func => new Proxy(()=>{}, { apply: (bad_func, ...args) => n.Reflect.apply(func, ...args) }),
 				sanitize = str => [...str].map(char => '&#' + char.charCodeAt() + ';').join(''),
+				util = require('util'),
 				log_func = (...args) => electron.ipcRenderer.send('add_log', {
 					log: sanitize(util.format(...args)),
 					color: '#FFF',
@@ -1025,19 +833,19 @@ var fs = require('fs'),
 				sploit_safe = new Proxy({}, {
 					get: (obj, prop) => { try{
 						if(Object.getOwnPropertyNames(Object.prototype).some(blocked => prop == blocked))return void'';
-						var ret = Reflect.get(cheat.event, prop),
+						var ret = n.Reflect.get(cheat.event, prop),
 							ret1 = ret;
 						
-						if(ret && ret.constructor == Function)ret = new Proxy(()=>{}, { apply: (target, thisArg, argArray) => Reflect.apply(ret1, thisArg, argArray) });
+						if(ret && ret.constructor == Function)ret = new Proxy(()=>{}, { apply: (target, thisArg, argArray) => n.Reflect.apply(ret1, thisArg, argArray) });
 						
 						return ret;
 					}catch(err){ err_func(err) }},
-					set: (obj, prop, value) => Reflect.set(cheat.event, prop, value),
+					set: (obj, prop, value) => n.Reflect.set(cheat.event, prop, value),
 				});
 			
 			// load js
 			fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8')).forEach(data => { try{
-				Reflect.apply(Reflect.construct(window.Function, ['unsafeWindow', 'sploit', 'console', data]), window, [
+				n.Reflect.apply(n.Reflect.construct(window.Function, ['unsafeWindow', 'sploit', 'console', data]), window, [
 					window,
 					sploit_safe, 
 					{ log: clean_func(log_func), error: clean_func(err_func) },
@@ -1056,18 +864,12 @@ var fs = require('fs'),
 	jstr = JSON.stringify,
 	super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]])),
 	inject = () => {
-		window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
-		window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
-		
-		// clear all inputs when window is not focused
-		window.addEventListener('blur', () => cheat.inputs = []);
-		
 		window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, thisArg, [node]) => {
-			var ret = Reflect.apply(target, thisArg, [node]);
+			var ret = n.Reflect.apply(target, thisArg, [node]);
 			
 			if(node.nodeName == 'IFRAME' && node.style.display == 'none'){
 				node.contentWindow.WebAssembly = window.WebAssembly;
-				node.contentWindow.Response.prototype.arrayBuffer = uhook(node.contentWindow.Response.prototype.arrayBuffer, (target_buf, thisArg, argArray) => Reflect.apply(target_buf, thisArg, argArray).then(ret => {
+				node.contentWindow.Response.prototype.arrayBuffer = uhook(node.contentWindow.Response.prototype.arrayBuffer, (target_buf, thisArg, argArray) => n.Reflect.apply(target_buf, thisArg, argArray).then(ret => {
 					var arr = new Uint8Array(ret),
 						xor_key = arr[0]  ^ '!'.charCodeAt(),
 						code = Array.from(arr).map(chr => String.fromCharCode(chr ^ xor_key)).join('');
@@ -1101,17 +903,3 @@ var fs = require('fs'),
 
 init();
 inject();
-
-/*AudioParam.prototype.setTargetAtTime = uhook(AudioParam.prototype.setTargetAtTime, (target, thisArg, argArray) => {
-	var ret;
-	
-	try{
-		ret = Reflect.apply(target, thisArg, [...argArray].map(arg => (isNaN(arg) || !arg) ? 0 : arg));
-	}catch(err){
-		cheat.err(err);
-		
-		ret = thisArg;
-	}
-	
-	return ret;
-});*/

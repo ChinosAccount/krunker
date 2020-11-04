@@ -79,6 +79,7 @@ body {
 	border-top: none;
 	border-bottom-left-radius: 3px;
 	border-bottom-right-radius: 3px;
+	overflow: hidden;
 }
 
 .sidebar-con {
@@ -95,22 +96,23 @@ body {
 	line-height: 36px;
 	text-align: center;
 	border-bottom: 2px solid #445;
-	transition: opacity .1s ease-in-out
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
 
 .tab-button:hover {
-	background: #666
+	background: #666;
 }
 
 .tab-button:active {
-	background: #393a3e
+	background: #333;
+	box-shadow: -3px -1px 0px 3px #CCC6;
 }
 
 .content-con {
 	flex: 1 1 0;
 	display: flex;
 	flex-direction: column;
-	overflow-y: auto;
+	/* overflow-y: auto; */
 	height: 100%;
 }
 
@@ -133,27 +135,55 @@ body {
 	width: 36px;
 	text-align: center;
 	line-height: 36px;
-	border-right: 2px solid #445;
-	transition: ease-in-out .1s
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 }
 
 .control-button:hover {
-	background: #32343e;
+	background: #333;
 	filter: brightness(125%)
 }
 
+.control-button:active {
+	box-shadow: 0px 0px 0px 3px #CCC6;
+}
+
 .control-button.true {
-	background: #2a0
+	background: #2A0;
+}
+
+.control-button.true:active {
+	box-shadow: 0px 0px 0px 3px #2A06;
 }
 
 .control-button.false {
-	background: #a1050d
+	background: #A00;
+}
+
+.control-button.false:active {
+	box-shadow: 0px 0px 0px 3px #A006;
+}
+
+.control-textbox {
+	height: 28px;
+	display: block;
+	width: 80%;
+	font: 14px Inconsolata, monospace;
+	padding: 0px .75rem 0px 0px;
+	text-align: right;
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+	border: 1px solid #2B4194;
+	margin: auto 3px;
+}
+
+.control-textbox:focus {
+	box-shadow: 0px 0px 0px 3px #037;
 }
 
 .control-label {
 	flex: 1 1 0;
 	padding-left: 15px;
-	line-height: 36px
+	line-height: 36px;
+	border-left: 2px solid #445;
 }
 
 .control-slider {
@@ -200,11 +230,11 @@ body {
 .ver {
 	position: absolute;
 	top: 0px;
-	bottom: 0px;
 	right: 0px;
 	width: 60px;
 	margin: auto;
 	line-height: 34px;
+	height: 34px;
 	text-align: center;
 }
 
@@ -251,15 +281,18 @@ body {
 .log-text {
 	display: inline;
 }
+
+* {
+	outline: none;
+}
 `;
 
 var main = async () => {
 	values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
 	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
 	
-	var cheat = {
+	var cheat = window.cheat = {
 			keybinds: [],
-			ui_controls: [],
 		},
 		init_ui = async (title, footer, array) => {
 			var con = add_ele('div', document.body, { className: 'con' }),
@@ -271,20 +304,22 @@ var main = async () => {
 				tab_nodes = [],
 				process_controls = (control, tab, tab_button, tab_ele) => {
 					if(control.type == 'nested_menu'){
-						control.tab_ele = cons.appendChild(document.createElement('div'));
+						control.tab_ele = add_ele('div', cons, { className: 'content-con', style: 'display: none' });
+						
 						tab_nodes.push(control.tab_ele);
-						control.tab_ele.className = 'content-con';
-						control.tab_ele.style.display = 'none';
 						
 						control.val.forEach(controle => process_controls(controle, tab, tab_button, control.tab_ele));
+						
+						if(control.load)control.load(control.tab_ele);
 					}
 					
 					var content = tab_ele.appendChild(document.createElement('div')),
-						content_name = document.createElement('div'); // append after stuff
+						content_name = document.createElement('div'), // append after stuff
+						label_appended = false;
 					
 					content.className = 'content';
 					
-					control.interact = () => {
+					control.interact = data => {
 						switch(control.type){
 							case'bool':
 								control.val_set(!control.val_get())
@@ -292,7 +327,7 @@ var main = async () => {
 							case'bool_rot':
 								control.aval = control.aval + 1
 								if(control.aval >= control.vals.length)control.aval = 0 // past length
-								control.val_set(control.vals[control.aval].val)
+								control.val_set(control.vals[control.aval].val);
 								break
 							case'function':
 								control.val_get()();
@@ -304,11 +339,14 @@ var main = async () => {
 								tab_nodes.forEach(ele => ele.style.display = 'none');
 								control.tab_ele.removeAttribute('style');
 								break
+							case'textbox':
+								control.val_set(control.input.value.substr(0, control.max_length));
+								break
 						}
 						control.update();
 					};
 					
-					control.update = _ =>{
+					control.update = _ => {
 						switch(control.type){
 							case'bool':
 								control.button.className = 'control-button ' + !!control.val_get();
@@ -319,14 +357,17 @@ var main = async () => {
 							case'text':
 								break
 							case'text-small':
+								content_name.style.border = 'none';
 								content_name.style['font-size'] = '12px';
 								content_name.style['padding-left'] = '8px';
 								break
 							case'text-medium':
+								content_name.style.border = 'none';
 								content_name.style['font-size'] = '13px';
 								content_name.style['padding-left'] = '8px';
 								break
 							case'text-bold':
+								content_name.style.border = 'none';
 								content_name.style['font-weight'] = '600';
 								content_name.style['padding-left'] = '8px';
 								break
@@ -335,7 +376,9 @@ var main = async () => {
 								content_name.style['font-weight'] = '600';
 								content_name.style['padding-left'] = '8px';
 								break
-
+							case'textbox':
+								control.input.value = control.input.value.substr(0, control.max_length);
+								break
 						}
 					};
 					
@@ -349,6 +392,25 @@ var main = async () => {
 					
 					
 					switch(control.type){
+						case'textbox':
+							
+							Object.assign(content.appendChild(content_name), {
+								className: 'control-label',
+								innerHTML: control.name,
+							});
+							
+							content_name.style.padding = '0px 10px';
+							content_name.style['border-left'] = 'none';
+							content_name.style['border-right'] = '2px solid #445';
+							
+							control.input = add_ele('input', content, { className: 'control-textbox', placeholder: control.placeholder, spellcheck: false, value: control.val_get() });
+							
+							// .style.display = 'none';
+							label_appended = true;
+							
+							control.input.addEventListener('input', control.interact);
+							
+							break
 						case'slider':
 							var movement = { tb: { value: false, } };
 							
@@ -405,18 +467,18 @@ var main = async () => {
 							break
 					}
 					
-					content.appendChild(content_name);
-					content_name.className = 'control-label'
-					content_name.innerHTML = control.name;
+					if(!label_appended){
+						content.appendChild(content_name);
+						content_name.className = 'control-label'
+						content_name.innerHTML = control.name;
+					}
 					
 					control.update();
 					
 					if(control.key && control.key != 'unset')cheat.keybinds.push({
-						keycode: typeof control.key == 'number' ? 'Digit' + control.key : 'Key' + control.key,
+						keycode: !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase(),
 						interact: control.interact,
 					});
-					
-					cheat.ui_controls.push(control);
 				},
 				mouse_move_frame = () => {
 					var mouse_pos = electron.remote.screen.getCursorScreenPoint(),
@@ -481,8 +543,8 @@ var main = async () => {
 		super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]]));
 	
 	// add listener on ui and sploit
-	window.addEventListener('keydown', event => electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
-	window.addEventListener('keyup', event => electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
+	window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
+	window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
 
 	electron.ipcRenderer.on('keydown', (event, data) => {
 		var data = JSON.parse(data),
@@ -519,7 +581,7 @@ var main = async () => {
 					val: 'full',
 					display: 'Full',
 				}],
-				key: 3,
+				key: values.config.kb.aim || values.original_config.kb.aim,
 			},{
 				name: 'Auto bhop',
 				type: 'bool_rot',
@@ -541,7 +603,7 @@ var main = async () => {
 					val: 'autojump',
 					display: 'Auto jump',
 				}],
-				key: 4,
+				key: values.config.kb.bhop || values.original_config.kb.bhop,
 			},{
 				name: 'ESP mode',
 				type: 'bool_rot',
@@ -563,25 +625,25 @@ var main = async () => {
 					val: 'full',
 					display: 'Full',
 				}],
-				key: 5,
+				key: values.config.kb.esp || values.original_config.kb.esp,
 			},{
 				name: 'Tracers',
 				type: 'bool',
 				val_get: _ => values.config.esp.tracers,
 				val_set: v => values.config.esp.tracers = v,
-				key: 6,
+				key: values.config.kb.tracers || values.original_config.kb.tracers,
 			},{
 				name: 'Nametags',
 				type: 'bool',
 				val_get: _ => values.config.esp.nametags,
 				val_set: v => values.config.esp.nametags = v,
-				key: 7,
+				key: values.config.kb.nametags || values.original_config.kb.nametags,
 			},{
 				name: 'Overlay',
 				type: 'bool',
 				val_get: _ => values.config.game.overlay,
 				val_set: v => values.config.game.overlay = v,
-				key: 8,
+				key: values.config.kb.overlay || values.original_config.kb.overlay,
 			}],
 		},{
 			name: 'Game',
@@ -638,6 +700,12 @@ var main = async () => {
 				}],
 				key: 'unset',
 			},{
+				name: 'Smooth',
+				type: 'bool',
+				val_get: _ => values.config.aim.smooth,
+				val_set: v => values.config.aim.smooth = v,
+				key: 'unset',
+			},{
 				name: 'Auto reload',
 				type: 'bool',
 				val_get: _ => values.config.aim.auto_reload,
@@ -686,37 +754,6 @@ var main = async () => {
 				unit: 1,
 			}]
 		},{
-			name: 'Settings',
-			bottom_text: 'Shitsploit by Gaming gurus',
-			contents: [{
-				name: 'Open CSS folder',
-				type: 'function_inline',
-				val: _ => electron.shell.openItem(values.folders.css),
-				key: 'unset',
-			},{
-				name: 'Open JS folder',
-				type: 'function_inline',
-				val: _ => electron.ipcRenderer.send('open_path', values.folders.js),
-				key: 'unset',
-			},{
-				name: 'Open swapper folder',
-				type: 'function_inline',
-				val: _ => electron.ipcRenderer.send('open_path', values.folders.swap),
-				key: 'unset',
-			},{
-				name: 'Reset settings',
-				type: 'function_inline',
-				val(){
-					values.config = Object.assign({}, values.original_config);
-					
-					cheat.ui_controls.forEach(control => {
-						if(control.type == 'bool_rot')control.aval = 0;
-						control.update();
-					});
-				},
-				key: 'unset',
-			}],
-		},{
 			name: 'Client',
 			bottom_text: 'Shitsploit by Gaming gurus',
 			contents: [{
@@ -738,72 +775,116 @@ var main = async () => {
 				},
 				key: 'unset',
 			},{
+				name: 'Open CSS folder',
+				type: 'function_inline',
+				val: _ => electron.shell.openItem(values.folders.css),
+				key: 'unset',
+			},{
+				name: 'Open JS folder',
+				type: 'function_inline',
+				val: _ => electron.ipcRenderer.send('open_path', values.folders.js),
+				key: 'unset',
+			},{
+				name: 'Open swapper folder',
+				type: 'function_inline',
+				val: _ => electron.ipcRenderer.send('open_path', values.folders.swap),
+				key: 'unset',
+			},{
 				name: 'Reload UI',
 				type: 'function_inline',
 				val: _ => electron.ipcRenderer.send('reload_cheat'),
 				key: 'unset',
 			},{
-				name: 'Contributors',
 				type: 'nested_menu',
-				val: [{
-					name: 'Contributors:',
-					type: 'text-bold',
-				}, {
-					name: 'Shitsploit - Divide',
-					type: 'text-small',
-				}, {
-					name: 'Math stuff - Skid Lamer',
-					type: 'text-small',
-				}, {
-					name: 'Anyone claiming to "contribute" to the client and isnt listed here is lying',
-					type: 'text-medium',
-				},{
-					name: 'Join our Discord',
-					type: 'function_inline',
-					val: _ => electron.ipcRenderer.send('open_external', 'https://skidlamer.github.io/'),
-					key: 'unset',
-				}],
+				name: 'Console',
 				key: 'unset',
+				val: [],
+				load(node){
+					var prev_log = {},
+						add_log = (event, data) => {
+							if(prev_log.log == data.log){
+								prev_log.count++;
+								
+								prev_log.badge.style.display = 'inline-table';
+								prev_log.badge.innerHTML = prev_log.count > 99 ? '99+' : prev_log.count;
+							}else{
+								data.node = node.appendChild(document.createElement('div'));
+								data.badge = data.node.appendChild(document.createElement('div'));
+								data.ts = data.node.appendChild(document.createElement('div'));
+								data.text = data.node.appendChild(document.createElement('div'));
+								
+								data.node.className = 'log';
+								data.badge.className = 'log-badge';
+								data.ts.className = 'log-timestamp';
+								data.text.className = 'log-text';
+								
+								data.badge.style.display = 'none';
+								
+								data.ts.style.color = data.color;
+								data.text.style.color = data.color;
+								
+								data.count = 0;
+								
+								data.ts.innerHTML = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false }).format(new Date());
+								data.text.innerHTML = data.log;
+								
+								data.node.scrollIntoView();
+								
+								prev_log = data;
+							}
+						};
+					
+					add_log({}, {
+						color: '#FFF',
+						log: 'All logs from scripts will show up here..	',
+					});
+					
+					electron.ipcRenderer.on('add_log', add_log);
+				}
 			}]
 		},{
-			name: 'Console',
-			contents: [],
-			load(node){
-				var prev_log = {};
-				
-				electron.ipcRenderer.on('add_log', (event, data) => {
-					if(prev_log.log == data.log){
-						prev_log.count++;
-						
-						prev_log.badge.style.display = 'inline-table';
-						prev_log.badge.innerHTML = prev_log.count > 99 ? '99+' : prev_log.count;
-					}else{
-						data.node = node.appendChild(document.createElement('div'));
-						data.badge = data.node.appendChild(document.createElement('div'));
-						data.ts = data.node.appendChild(document.createElement('div'));
-						data.text = data.node.appendChild(document.createElement('div'));
-						
-						data.node.className = 'log';
-						data.badge.className = 'log-badge';
-						data.ts.className = 'log-timestamp';
-						data.text.className = 'log-text';
-						
-						data.badge.style.display = 'none';
-						
-						data.ts.style.color = data.color;
-						data.text.style.color = data.color;
-						
-						data.count = 0;
-						
-						data.ts.innerHTML = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false }).format(new Date());
-						data.text.innerHTML = data.log;
-						
-						data.node.scrollIntoView();
-						
-						prev_log = data;
-					}
-				});
-			}
+			name: 'Keybinds',
+			contents: [{
+				name: 'Aim',
+				placeholder: 'Aim keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.aim,
+				val_set: v => (values.config.kb.aim = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'Bhop',
+				placeholder: 'Bhop keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.bhop,
+				val_set: v => (values.config.kb.bhop = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'ESP',
+				placeholder: 'ESP keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.esp,
+				val_set: v => (values.config.kb.esp = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'Tracers',
+				placeholder: 'Tracers keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.tracers,
+				val_set: v => (values.config.kb.tracers = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'Overlay',
+				placeholder: 'Overlay keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.overlay,
+				val_set: v => (values.config.kb.overlay = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'Reset settings',
+				type: 'function_inline',
+				val: _ => (values.config = Object.assign({}, values.original_config), electron.ipcRenderer.send('reload_cheat')),
+				key: 'unset',
+			}],
 		}]);
 		
 		// custom css
