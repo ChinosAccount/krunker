@@ -30,7 +30,7 @@ var fs = require('fs'),
 			event: new (require('events'))(),
 			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
-			vars: [],
+			vars: {},
 			symbols: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
@@ -110,6 +110,19 @@ var fs = require('fs'),
 				
 				try{ return n.Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
 			},
+			canSee(a3, a4, a5, a6, a7 = 0, a8, a9){
+				if(!a3)return false;
+				for (var aa, ab = u.getD3D(a3.x, a3.y, a3.z, a4, a5, a6), ac = u.getDir(a3.z, a3.x, a6, a4), ad = u.getDir(u.getDistance(a3.x, a3.z, a4, a6), a5, 0, a3.y), ae = 1 / (ab * Math.sin(ac - Math.PI) * Math.cos(ad)), af = 1 / (ab * Math.cos(ac - Math.PI) * Math.cos(ad)), ag = 1 / (ab * Math.sin(ad)), ah = a3.y + (a3.height || 0) - k.cameraHeight, ai = a8 ? 0 : a7, aj = 0; aj < cheat.game.map.manager.objects.length; ++aj) if (!(aa = cheat.game.map.manager.objects[aj]).noShoot && aa.active && (!aa.transparent || a9)) {
+					var ak = u.lineInRect(a3.x, a3.z, ah, ae, af, ag, aa.x - Math.max(0, aa.width - a7), aa.z - Math.max(0, aa.length - a7), aa.y - Math.max(0, aa.height - ai), aa.x + Math.max(0, aa.width - a7), aa.z + Math.max(0, aa.length - a7), aa.y + Math.max(0, aa.height - a7));
+					if (ak && 1 > ak)return ak;
+				}
+				if(cheat.game.map.terrain){
+					var am = cheat.game.map.terrain.raycast(a3.x, -a3.z, ah, 1 / ae, -1 / af, 1 / ag);
+					
+					if(am)return u.getD3D(a3.x, a3.y, a3.z, am.x, am.z, -am.y);
+				}
+				return null;
+			},
 			find_match: async () => {
 				if(cheat.finding_match)return;
 				cheat.finding_match = true;
@@ -180,11 +193,11 @@ var fs = require('fs'),
 								y: ent.y || 0,
 								z: ent.z || 0,
 								project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
-								applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
+								applyMatrix4(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
 							})},
 							isActive: { get: _ => ent.mesh && ent.mesh.visible && ent.health && ent.x },
 							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(ent.pos) : { x: 0, y: 0, z: 0 } },
-							canSee: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+							canSee: { get: _ => ent.isActive && cheat.canSee(cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
 							inFrustrum: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
 							[cheat.symbols.isAI]: { get: _ => true },
 							[cheat.vars.crouchVal]: { get: _ => 1 },
@@ -237,6 +250,16 @@ var fs = require('fs'),
 				
 				cheat.find_target();
 				
+				if(!cheat.tt || !cheat.tt._isPlaying)cheat.tt = new TWEEN.Tween({
+					x: data[keys.xdir] / 1000,
+					y: data[keys.ydir] / 1000,
+				}).easing(TWEEN.Easing.Quadratic.Out);
+				
+				cheat.tt._valuesStart = {
+					x: data[keys.xdir] / 1000,
+					y: data[keys.ydir] / 1000,
+				};
+				
 				// aiming
 				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
 					var yVal = cheat.target.y
@@ -248,8 +271,6 @@ var fs = require('fs'),
 							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3),
 							y: cheat.round(yDire % (Math.PI * 2), 3),
 						};
-					
-					cheat.game.config.inc_deltaMlt += 0.2;
 					
 					if(!rot.x)rot.x = 0;
 					if(!rot.y)rot.y = 0;
@@ -289,22 +310,17 @@ var fs = require('fs'),
 							}
 							
 							break
-					} };
-		
+					} }else if(cheat.tt)cheat.tt._valuesStart = {
+						x: data[keys.xdir] / 1000,
+						y: data[keys.ydir] / 1000,
+					};
+					
 					// create new tween if previous tween wasnt playing or there wasn't previous tween
-					if(config.aim.smooth && (!cheat.tt || !cheat.tt._isPlaying))cheat.tt = new TWEEN.Tween({
-						x: data[keys.xdir] / 1000,
-						y: data[keys.ydir] / 1000,
-					}).onUpdate(set_rot).easing(TWEEN.Easing.Quadratic.Out);
-					/*else if(cheat.tt)cheat.tt._valuesStart = {
-						x: data[keys.xdir] / 1000,
-						y: data[keys.ydir] / 1000,
-					};*/
 					
 					if(config.aim.smooth){
-						cheat.tt.to({ x: rot.x, y: rot.y }, 60);
+						cheat.tt.to({ x: rot.x, y: rot.y }, 100);
 						
-						if(!cheat.tt._isPlaying)cheat.tt.start();
+						cheat.tt.onUpdate(set_rot).start();*/
 					}else set_rot({ x: rot.x, y: rot.y });
 				}
 			},
@@ -486,6 +502,8 @@ var fs = require('fs'),
 						var hp_grad = cheat.ctr('createLinearGradient', [0, src_pos.y - esp_height, 0, src_pos.y - esp_height + esp_height]),
 							box_ps = [src_pos.x - esp_width, src_pos.y - esp_height, esp_width / 4, esp_height];
 						
+						if(typeof hp_grad.addColorStop != 'function')return;
+						
 						hp_grad.addColorStop(0, '#F00');
 						hp_grad.addColorStop(0.5, '#FF0');
 						hp_grad.addColorStop(1, '#0F0');
@@ -593,13 +611,15 @@ var fs = require('fs'),
 				['reloadTimer', /this\['(\w+)']-=\w+,\w+\['reloadUIAnim']/, 1],
 				['mouseDownR', /this\['(\w+)']=0x0,this\['keys']=/, 1], 
 				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
-				['noclip', /Noclip\\x20-\\x20'\+\(\w+\['(\w+)']\?'Enabled/, 1],
+				// ['noclip', /Noclip\\x20-\\x20'\+\(\w+\['(\w+)']\?'Enabled/, 1],
 				/*
 				['nAuto', /!this\['doingInter']\){var \w+=this\['\w+']\|\|!this\['weapon']\['(\w+)']&&a0\[0x5];/, 1],
 				['xVel', /this\['x']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedX']/, 1],
 				['zVel', /this\['z']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedZ']/, 1],*/
 				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
 				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
+				
+				['camLookAt', /this\['(\w+')\]=function\(\w+,\w+,\w+\){var \w+=\w+\['getXDire']\(this\['object']\['position']\['x']/, 1]
 				
 			],
 			patches: new Map([
@@ -886,7 +906,7 @@ var fs = require('fs'),
 						var match = code.match(regex);
 						
 						if(match && match[pos])cheat.vars[label] = match[pos];
-						else cheat.vars_not_found.push(label);
+						else cheat.vars_not_found.push(label), cheat.vars[label] = label;
 					});
 					
 					if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));

@@ -415,6 +415,8 @@ var fs = require('fs'),
 				title: 'Shitsploit UI',
 			});
 			
+			wins.sploit.setMenu(null);
+			
 			wins.sploit.on('focus', () => (wins.sploit.focused = true, wins.sploit.setOpacity(values.ui_visible ? 1 : 0)));
 			
 			wins.sploit.on('blur', () =>  (wins.sploit.focused = false, wins.sploit.setOpacity(values.ui_visible ? 0.75 : 0)));
