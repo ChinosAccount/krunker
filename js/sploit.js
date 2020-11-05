@@ -278,6 +278,11 @@ var fs = require('fs'),
 					// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
 					if((config.aim.status == 'silent' || config.aim.status == 'full') && (!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)))cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
+					if(cheat.tt)cheat.tt._valuesStart = {
+						x: data[keys.xdir] / 1000,
+						y: data[keys.ydir] / 1000,
+					};
+					
 					var set_rot = rot => { switch(config.aim.status){
 						case'silent':
 							// dont shoot if weapon is on shoot cooldown
@@ -310,17 +315,14 @@ var fs = require('fs'),
 							}
 							
 							break
-					} }else if(cheat.tt)cheat.tt._valuesStart = {
-						x: data[keys.xdir] / 1000,
-						y: data[keys.ydir] / 1000,
-					};
+					} }
 					
 					// create new tween if previous tween wasnt playing or there wasn't previous tween
 					
 					if(config.aim.smooth){
 						cheat.tt.to({ x: rot.x, y: rot.y }, 100);
 						
-						cheat.tt.onUpdate(set_rot).start();*/
+						cheat.tt.onUpdate(set_rot).start();
 					}else set_rot({ x: rot.x, y: rot.y });
 				}
 			},
