@@ -1,16 +1,18 @@
 'use strict';
 var fs = require('fs'),
 	path = require('path'),
+	electron = require('electron'),
 	cheat = {
 		module: module,
 		require: require,
+		processe: process,
 		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 			var interval = setInterval(() => {
-				var checke = check();
+				var checked = check();
 				
-				if(checke)clearInterval(interval); else return;
+				if(checked)clearInterval(interval); else return;
 				
-				resolve(checke);
+				resolve(checked);
 				interval = null;
 			}, 15);
 			
@@ -34,8 +36,7 @@ var fs = require('fs'),
 		return func
 	},
 	init = async () => {
-		var electron = require('electron'),
-			values = await electron.ipcRenderer.invoke('sync_values').then(JSON.parse),
+		var values = await electron.ipcRenderer.invoke('sync_values').then(JSON.parse),
 			config = values.config; // assign it too lazy to rewrite all stuff
 		
 		electron.ipcRenderer.on('receive_values', (event, data) => {
@@ -301,7 +302,7 @@ var fs = require('fs'),
 							else data[keys.scope] = 1;
 							
 							// wait until we are shooting to look at enemy
-							if(cheat.player.weapon.can_shoot && !data[keys.reload] && (data[keys.shoot] || cheat.player.weapon.melee)){
+							if(!data[keys.reload] && (data[keys.shoot] || cheat.player.weapon.melee)){
 								data[keys.xdir] = rot.x * 1000
 								data[keys.ydir] = rot.y * 1000
 							}
@@ -348,8 +349,6 @@ var fs = require('fs'),
 							
 							break
 					} })();
-					
-					if(cheat.player.weapon.can_shoot !== false)cheat.player.weapon.can_shoot = false, setTimeout((() => cheat.player.weapon.can_shoot = true), cheat.player.weapon.rate);
 					
 					if(config.aim.triggerbot){
 						cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
