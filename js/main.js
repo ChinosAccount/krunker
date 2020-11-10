@@ -46,7 +46,7 @@ var fs = require('fs'),
 	values = {
 		version: electron.app.getVersion(),
 		src_dir: fs.existsSync(path.resolve(__dirname, 'main.js')) ? __dirname : path.join(__dirname, 'res'),
-		consts: ss_require('./consts.jsc'),
+		consts: ss_require('./consts.js'),
 		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.80 Safari/537.36 Edg/86.0.622.43',
 		folders: {
 			sploit: sploit_folder,
@@ -100,11 +100,7 @@ var fs = require('fs'),
 			},
 		},
 	},
-	html = {
-		splash: '<html><head><meta charset="utf8"><title>Krunker</title><style>body{margin:0;background:#fff0}.splash-wrapper{z-index:1;background:#fff no-repeat center fixed;background-size:cover;background-image:url("https://kru2.sys32.dev/client/splash.jpg?ts=' + Date.now() + '");border:6px solid #0003;width:-webkit-fill-available;height:-webkit-fill-available}@font-face{font-family:GameFont;src:url(https://kru2.sys32.dev/static/krunker.ttf?a)}.g{outline:0;font-family:GameFont;font-size:12px;user-select:none;color:#fff;text-shadow:-1px -1px 0 #202020,1px -1px 0 #202020,-1px 1px 0 #202020,1px 1px 0 #202020,-2px -2px 0 #202020,2px -2px 0 #202020,-2px 2px 0 #202020,2px 2px 0 #202020;margin:0}a{color:#49f}a:hover{color:#7bf}.status{position:absolute;bottom:3px;left:10px;line-height:13px}.version{position:absolute;color:#fff;bottom:3px;right:10px;line-height:13px}.close{position:absolute;top:6px;right:6px;background:#0003;width:34px;height:18px;padding-left:6px;color:#fff;text-align:center;line-height:16px;user-select:none;cursor:pointer}.close:hover{top:0;right:0;width:46px;height:24px;line-height:28px;background:#a22;padding:0}</style></head><body><div class="splash-wrapper"><div class="close" onclick=window.close()>🞩</div><div class="g status"><p>Loading...</p></div><div class="g version"><p>Shitsploit v' + values.version + '</p></div></div></body></html>',
-		ui: '<html><head><meta charset="utf8"><title>Krunker</title></head><body></body></html>',
-		prompt: question => '<html><style type="text/css">html,body{padding: 0px;overflow: hidden;margin: 0px;}@font-face{font-family: "GameFont";src: url("https://kru2.sys32.dev/static/krunker.ttf");}*{outline: none;font-family: "GameFont";color: #353535;user-select: none;}#prompt_menu{background-color: #fff;text-align: center;padding: 10px;position: absolute;left: 0;right: 0;border-radius: 5px;-webkit-box-shadow: 0px 7px 0px 0px #a6a6a6;-moz-box-shadow: 0px 7px 0px 0px #a6a6a6;}#promptText{word-wrap: break-word;}input{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}select{top: 100px;background-color: #eee;border: none;border-radius: 3px;font-size: 14px;padding: 4px;width: 250px;}.action{color: #fff !important;margin-right: 5px;margin-left: 5px;background-color: #2196F3;padding: 6px;font-size: 12px;display: inline-block;cursor: pointer;border-radius: 3px;}.action:active{background-color: #666;}.line_spacing{padding-bottom: 12px;}</style><head></head><body><div id="prompt_menu"><div class="line_spacing"><a id="promptText">' + question + '</a></div><div id="type_frame" class="line_spacing"><input id="prompt_input" placeholder="Enter Input"><br></div><div class="line_spacing"><div class="action submit">Submit</div><div class="action cancel">Cancel</div></div></div></body></html>'
-	},
+	media = ss_require('./media.js'),
 	sizes = {
 		splash: {
 			width: 575,
@@ -205,7 +201,7 @@ var fs = require('fs'),
 					`);
 				});
 				
-				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(html.prompt(opt.data)));
+				wins.prompt.loadURL('data:text/html,' + encodeURIComponent(media.prompt(opt.data)));
 				
 			});
 			
@@ -295,7 +291,7 @@ var fs = require('fs'),
 				}).catch(err => (note = 'Error showing splash: ' + err.message, init.main()));
 			});
 			
-			wins.splash.loadURL('data:text/html,' + encodeURIComponent(html.splash));
+			wins.splash.loadURL('data:text/html,' + encodeURIComponent(media.splash(values)));
 		},
 		main(){
 			wins.game = setup_win({
@@ -423,7 +419,7 @@ var fs = require('fs'),
 			
 			wins.sploit.once('closed', () => (wins.sploit = null, electron.app.quit()));
 			
-			wins.sploit.loadURL('data:text/html,' + encodeURIComponent(html.ui));
+			wins.sploit.loadURL('data:text/html,' + encodeURIComponent(media.ui));
 			
 			wins.sploit.webContents.on('did-finish-load', () => {
 				if(!wins.sploit.webContents.isDevToolsOpened() && values.consts.ss_dev_debug)wins.sploit.webContents.openDevTools({ mode: 'undocked' });

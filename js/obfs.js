@@ -3,6 +3,7 @@ var bytenode = require('bytenode'),
 	path = require('path'),
 	fs = require('fs'),
 	v8 = require('v8'),
+	mod = require('module'),
 	consts = require('./consts.js'),
 	default_obfs_ops = {
 		splitStrings: true,
@@ -56,9 +57,11 @@ module.exports = {
 			// load custom options if we obfuscate
 			try{
 				if(options.obio){
-					var consts_wrapped = require('module').wrap(fs.readFileSync(path.join(__dirname, 'consts.js'), 'utf8'));
+					var modules = [ './consts.js', './media.js' ],
+						requires_string = '{' + modules.map(file => '"' + file + '":' + mod.wrap(fs.readFileSync(path.join(__dirname, file), 'utf8')).replace(/.$/, '')).join(',') + '}';
 					
-					fs.writeFileSync(file_obfus, jsob.obfuscate('var ss_requires = {}, ss_require = file => ss_requires[file], ce = { exports: {} }, ex = {};' + consts_wrapped.replace(/.$/, '') + '(ex, require("module").createRequire(__dirname), ce, __filename, __dirname); ss_requires["./consts.jsc"] = ce.exports || ex;'
+					fs.writeFileSync(file_obfus, jsob.obfuscate(
+						'var mod = require("module"), ss_requires = ' + requires_string + ', ss_require = file => { var exports = {}, module = { get exports(){ return exports }, set exports(v){ exports = v } }; ss_requires[file](exports, mod.createRequire(__dirname), module, __filename, __dirname); console.log(exports); return exports; }; '
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));
 				}
 			}catch(err){

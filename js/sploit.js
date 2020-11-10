@@ -1,8 +1,9 @@
 'use strict';
 var fs = require('fs'),
 	path = require('path'),
-	fetch = require('node-fetch'),
 	cheat = {
+		module: module,
+		require: require,
 		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 			var interval = setInterval(() => {
 				var checke = check();
@@ -293,14 +294,14 @@ var fs = require('fs'),
 						)
 					)(cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] || cheat.player.weapon.ammo == null) ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
-					var set_rot = rot => { switch(config.aim.status){
+					!config.aim.smooth ? (_ => { switch(config.aim.status){
 						case'silent':
 							// dont shoot if weapon is on shoot cooldown
 							if(cheat.player.weapon.nAuto && cheat.player[cheat.vars.didShoot])data[keys.shoot] = data[keys.scope] = 0;
 							else data[keys.scope] = 1;
 							
 							// wait until we are shooting to look at enemy
-							if(data[keys.shoot] || cheat.player.weapon.melee){
+							if(cheat.player.weapon.can_shoot && !data[keys.reload] && (data[keys.shoot] || cheat.player.weapon.melee)){
 								data[keys.xdir] = rot.x * 1000
 								data[keys.ydir] = rot.y * 1000
 							}
@@ -325,11 +326,7 @@ var fs = require('fs'),
 							}
 							
 							break
-					} }
-					
-					// create new tween if previous tween wasnt playing or there wasn't previous tween
-					
-					if(config.aim.smooth)switch(config.aim.status){
+					} })() : (_ => { switch(config.aim.status){
 						case'assist':
 							
 							if(cheat.controls[cheat.vars.mouseDownR] || cheat.controls.keys[cheat.controls.binds.aimKey.val])cheat.moving_camera = {
@@ -350,15 +347,17 @@ var fs = require('fs'),
 							}
 							
 							break
-					}else set_rot({ x: rot.x, y: rot.y });
-				}
-				
-				if(config.aim.triggerbot){
-					cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
-					cheat.mid = new cheat.three.Vector2(0, 0));
-					var playerMaps = cheat.game.players.list.filter(ent => ent.objInstances && ent.isEnemy && ent.canSee && ent.health).map(ent => ent.objInstances);
+					} })();
 					
-					cheat.raycaster.setFromCamera(cheat.mid, cheese.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
+					if(cheat.player.weapon.can_shoot !== false)cheat.player.weapon.can_shoot = false, setTimeout((() => cheat.player.weapon.can_shoot = true), cheat.player.weapon.rate);
+					
+					if(config.aim.triggerbot){
+						cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
+						cheat.mid = new cheat.three.Vector2(0, 0));
+						var playerMaps = cheat.game.players.list.filter(ent => ent.objInstances && ent.isEnemy && ent.canSee && ent.health).map(ent => ent.objInstances);
+						
+						cheat.raycaster.setFromCamera(cheat.mid, cheese.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
+					}
 				}
 			},
 			process(){ try{
@@ -794,8 +793,6 @@ var fs = require('fs'),
 						ws: ['ahNum', 'connected', 'socketId', 'sendQueue', 'trackPacketStats'],
 						overlay: ['render', 'canvas'],
 						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
-						ui: ['loading', 'menu2'],
-						shop: ['purchases', 'wheels', 'events', 'freeKR'],
 					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).map(mod => mod.exports).forEach(exp => (entries.some(entry => n.Reflect.apply(Object.prototype.hasOwnProperty, exp, [ entry ])) && (cheat[label] = exp)))));
 				},
 				set game(nv){

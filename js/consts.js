@@ -14,7 +14,7 @@ module.exports = {
 		editor: 0.8,
 	},
 	ss_dev: true,
-	ss_dev_debug: true,
+	ss_dev_debug: false,
 	js_dir: js_dir,
 	app_dir: app_dir,
 	obfs: path.join(js_dir, 'obfs.js'),
