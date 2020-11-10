@@ -1,8 +1,24 @@
 'use strict';
 var fs = require('fs'),
 	path = require('path'),
-	cheat = {},
-	n = { Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)) },
+	fetch = require('node-fetch'),
+	cheat = {
+		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
+			var interval = setInterval(() => {
+				var checke = check();
+				
+				if(checke)clearInterval(interval); else return;
+				
+				resolve(checke);
+				interval = null;
+			}, 15);
+			
+			setTimeout(() => {
+				if(interval)return clearInterval(interval), reject('timeout');
+			}, timeout);
+		}),
+	},
+	n = { CanvasRenderingContext2D_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(CanvasRenderingContext2D.prototype)), Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)) },
 	uhook = (orig_func, handler) => {
 		var func = Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, Object.getOwnPropertyDescriptors(orig_func));
 		
@@ -26,26 +42,26 @@ var fs = require('fs'),
 			config = values.config;
 		});
 		
-		cheat = {
+		cheat = Object.assign(cheat, {
 			event: new (require('events'))(),
 			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
 			vars: {},
-			symbols: new Proxy({}, {
+			syms: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
 					
 					return target[prop];
 				}
 			}),
-			randoms: new Proxy({}, {
+			rnds: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = [...Array(16)].map(() => Math.random().toString(36)[2]).join('').replace(/(\d|\s)/, 'V').toLowerCase().substr(0, 6);
 					
 					return target[prop];
 				}
 			}),
-			objects: new Proxy({}, {
+			objs: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = cheat.object_list[~~(Math.random() * cheat.object_list.length)];
 					
@@ -108,18 +124,18 @@ var fs = require('fs'),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
-				try{ return n.Reflect.apply(CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
-			},
-			canSee(a3, a4, a5, a6, a7 = 0, a8, a9){
-				if(!a3)return false;
-				for (var aa, ab = u.getD3D(a3.x, a3.y, a3.z, a4, a5, a6), ac = u.getDir(a3.z, a3.x, a6, a4), ad = u.getDir(u.getDistance(a3.x, a3.z, a4, a6), a5, 0, a3.y), ae = 1 / (ab * Math.sin(ac - Math.PI) * Math.cos(ad)), af = 1 / (ab * Math.cos(ac - Math.PI) * Math.cos(ad)), ag = 1 / (ab * Math.sin(ad)), ah = a3.y + (a3.height || 0) - k.cameraHeight, ai = a8 ? 0 : a7, aj = 0; aj < cheat.game.map.manager.objects.length; ++aj) if (!(aa = cheat.game.map.manager.objects[aj]).noShoot && aa.active && (!aa.transparent || a9)) {
-					var ak = u.lineInRect(a3.x, a3.z, ah, ae, af, ag, aa.x - Math.max(0, aa.width - a7), aa.z - Math.max(0, aa.length - a7), aa.y - Math.max(0, aa.height - ai), aa.x + Math.max(0, aa.width - a7), aa.z + Math.max(0, aa.length - a7), aa.y + Math.max(0, aa.height - a7));
+				try{ return n.Reflect.apply(n.CanvasRenderingContext2D_prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
+			},// canSee(cheat.player, ent.x, ent.y, ent.z)
+			canSee(player, a4, a5, a6, a7 = 0, a8, a9){
+				if(!player)return false;
+				for (var aa, ab = cheat.util.getD3D(player.x, player.y, player.z, a4, a5, a6), ac = cheat.util.getDir(player.z, player.x, a6, a4), ad = cheat.util.getDir(cheat.util.getDistance(player.x, player.z, a4, a6), a5, 0, player.y), ae = 1 / (ab * Math.sin(ac - Math.PI) * Math.cos(ad)), af = 1 / (ab * Math.cos(ac - Math.PI) * Math.cos(ad)), ag = 1 / (ab * Math.sin(ad)), ah = player.y + (player.height || 0) - cheat.gconfig.cameraHeight, ai = a8 ? 0 : a7, aj = 0; aj < cheat.game.map.manager.objects.length; ++aj) if (!(aa = cheat.game.map.manager.objects[aj]).noShoot && aa.active && (!aa.transparent || a9)) {
+					var ak = cheat.util.lineInRect(player.x, player.z, ah, ae, af, ag, aa.x - Math.max(0, aa.width - a7), aa.z - Math.max(0, aa.length - a7), aa.y - Math.max(0, aa.height - ai), aa.x + Math.max(0, aa.width - a7), aa.z + Math.max(0, aa.length - a7), aa.y + Math.max(0, aa.height - a7));
 					if (ak && 1 > ak)return ak;
 				}
 				if(cheat.game.map.terrain){
-					var am = cheat.game.map.terrain.raycast(a3.x, -a3.z, ah, 1 / ae, -1 / af, 1 / ag);
+					var am = cheat.game.map.terrain.raycast(player.x, -player.z, ah, 1 / ae, -1 / af, 1 / ag);
 					
-					if(am)return u.getD3D(a3.x, a3.y, a3.z, am.x, am.z, -am.y);
+					if(am)return cheat.util.getD3D(player.x, player.y, player.z, am.x, am.z, -am.y);
 				}
 				return null;
 			},
@@ -185,8 +201,8 @@ var fs = require('fs'),
 					var ais = cheat.game.AI.ais.filter(ent => ent.mesh && ent.mesh.visible && ent.health && ent.x);
 					
 					ais.forEach(ent => {
-						if(!ent[cheat.symbols.added_data])Object.defineProperties(ent, {
-							[cheat.symbols.added_data]: { get: _ => true },
+						if(!ent[cheat.syms.added_data])Object.defineProperties(ent, {
+							[cheat.syms.added_data]: { get: _ => true },
 							pos: { get: _ => ({
 								distanceTo(p2){return Math.hypot(this.x - p2.x, this.y - p2.y, this.z - p2.z)},
 								x: ent.x || 0,
@@ -197,9 +213,9 @@ var fs = require('fs'),
 							})},
 							isActive: { get: _ => ent.mesh && ent.mesh.visible && ent.health && ent.x },
 							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(ent.pos) : { x: 0, y: 0, z: 0 } },
-							canSee: { get: _ => ent.isActive && cheat.canSee(cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+							canSee: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
 							inFrustrum: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
-							[cheat.symbols.isAI]: { get: _ => true },
+							[cheat.syms.isAI]: { get: _ => true },
 							[cheat.vars.crouchVal]: { get: _ => 1 },
 							weapon: { get: _ => ({ name: 'ghost powers' }) },
 							objInstances: { get: _ => ent.mesh },
@@ -227,7 +243,7 @@ var fs = require('fs'),
 				}
 			},
 			procInputs(data){
-				if(!cheat.controls || !cheat.player)return;
+				if(!cheat.controls || !cheat.player || !cheat.player.pos)return;
 				
 				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
@@ -250,20 +266,12 @@ var fs = require('fs'),
 				
 				cheat.find_target();
 				
-				if(!cheat.tt || !cheat.tt._isPlaying)cheat.tt = new TWEEN.Tween({
-					x: data[keys.xdir] / 1000,
-					y: data[keys.ydir] / 1000,
-				}).easing(TWEEN.Easing.Quadratic.Out);
-				
-				cheat.tt._valuesStart = {
-					x: data[keys.xdir] / 1000,
-					y: data[keys.ydir] / 1000,
-				};
+				cheat.moving_camera = false;
 				
 				// aiming
-				if(cheat.target && !cheat.player[cheat.vars.reloadTimer]){
+				if(cheat.target && cheat.player.health && !cheat.player[cheat.vars.reloadTimer]){
 					var yVal = cheat.target.y
-							+ (cheat.target[cheat.symbols.isAI] ? -(cheat.target.dat.mSize / 2) : (cheat.target.jumpBobY * cheat.gconfig.jumpVel) + 1 - cheat.target[cheat.vars.crouchVal] * 3),
+							+ (cheat.target[cheat.syms.isAI] ? -(cheat.target.dat.mSize / 2) : (cheat.target.jumpBobY * cheat.gconfig.jumpVel) + 1 - cheat.target[cheat.vars.crouchVal] * 3),
 						yDire = cheat.getDir(cheat.player.z, cheat.player.x, cheat.target.z, cheat.target.x),
 						xDire = cheat.getXDire(cheat.player.x, cheat.player.y, cheat.player.z, cheat.target.x, yVal, cheat.target.z),
 						xv = xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27,
@@ -276,12 +284,14 @@ var fs = require('fs'),
 					if(!rot.y)rot.y = 0;
 					
 					// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
-					if((config.aim.status == 'silent' || config.aim.status == 'full') && (!cheat.player[cheat.vars.aimVal] || cheat.player.weapon.noAim || (cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)))cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] ? data[keys.shoot] = 1 : data[keys.reload] = 1;
-					
-					if(cheat.tt)cheat.tt._valuesStart = {
-						x: data[keys.xdir] / 1000,
-						y: data[keys.ydir] / 1000,
-					};
+					if(
+						(config.aim.status == 'silent' || config.aim.status == 'full') &&
+						(
+							!cheat.player[cheat.vars.aimVal] ||
+							cheat.player.weapon.noAim ||
+							(cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)
+						)
+					)(cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] || cheat.player.weapon.ammo == null) ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
 					var set_rot = rot => { switch(config.aim.status){
 						case'silent':
@@ -319,11 +329,36 @@ var fs = require('fs'),
 					
 					// create new tween if previous tween wasnt playing or there wasn't previous tween
 					
-					if(config.aim.smooth){
-						cheat.tt.to({ x: rot.x, y: rot.y }, 100);
-						
-						cheat.tt.onUpdate(set_rot).start();
+					if(config.aim.smooth)switch(config.aim.status){
+						case'assist':
+							
+							if(cheat.controls[cheat.vars.mouseDownR] || cheat.controls.keys[cheat.controls.binds.aimKey.val])cheat.moving_camera = {
+								xD: rot.x,
+								yD: rot.y,
+							}
+							
+							break
+						case'full':
+						case'silent':
+							
+							if(cheat.player.weapon.nAuto && cheat.player[cheat.vars.didShoot])data[keys.shoot] = data[keys.scope] = 0;
+							else data[keys.scope] = 1;
+							
+							if(data[keys.shoot] || cheat.player.weapon.melee)cheat.moving_camera = {
+								xD: rot.x,
+								yD: rot.y,
+							}
+							
+							break
 					}else set_rot({ x: rot.x, y: rot.y });
+				}
+				
+				if(config.aim.triggerbot){
+					cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
+					cheat.mid = new cheat.three.Vector2(0, 0));
+					var playerMaps = cheat.game.players.list.filter(ent => ent.objInstances && ent.isEnemy && ent.canSee && ent.health).map(ent => ent.objInstances);
+					
+					cheat.raycaster.setFromCamera(cheat.mid, cheese.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
 				}
 			},
 			process(){ try{
@@ -356,8 +391,8 @@ var fs = require('fs'),
 				if(!cheat.controls || !cheat.world || !cheat.player)return;
 				
 				cheat.game.players.list.forEach(ent => {
-					if(!ent[cheat.symbols.added_data])Object.defineProperties(ent, {
-						[cheat.symbols.added_data]: { get: _ => true },
+					if(!ent[cheat.syms.added_data])Object.defineProperties(ent, {
+						[cheat.syms.added_data]: { get: _ => true },
 						pos: { get: _ => ({
 							distanceTo(p2){return Math.hypot(this.x - p2.x, this.y - p2.y, this.z - p2.z)},
 							x: ent.x || 0,
@@ -382,10 +417,10 @@ var fs = require('fs'),
 					if(ent.objInstances)ent.objInstances.visible = true;
 					ent[cheat.vars.inView] = cheat.hide_nametags ? false : config.esp.nametags ? true : ent[cheat.vars.inView];
 					
-					if(ent.weapon && !ent.weapon[cheat.symbols.org_zoom])ent.weapon[cheat.symbols.org_zoom] = ent.weapon.zoom;
+					if(ent.weapon && !ent.weapon[cheat.syms.org_zoom])ent.weapon[cheat.syms.org_zoom] = ent.weapon.zoom;
 					
-					if(ent.weapon && !ent.weapon[cheat.symbols.zoom])ent.weapon[cheat.symbols.zoom] = n.Reflect.defineProperty(ent.weapon, 'zoom', {
-						get: _ => config.game.no_zoom ? 1 : ent.weapon[cheat.symbols.org_zoom],
+					if(ent.weapon && !ent.weapon[cheat.syms.zoom])ent.weapon[cheat.syms.zoom] = n.Reflect.defineProperty(ent.weapon, 'zoom', {
+						get: _ => config.game.no_zoom ? 1 : ent.weapon[cheat.syms.org_zoom],
 						set: n => ent.weapon._zoom = n,
 					});
 				});
@@ -420,6 +455,117 @@ var fs = require('fs'),
 				}
 				
 				cheat.ctr('resetTransform');
+				
+				if(config.esp.minimap){
+					var cm = cheat.game.map.maps[cheat.game.map.lastGen];
+					
+					if(!cm)return;
+					
+					if(!cm.mm || !cm.dims){
+						cm.mm = {
+							scale: 6,
+							offset: {
+								x: 100,
+								y: 75,
+							},
+							player_size: {
+								w: 5,
+								h: 5
+							},
+						};
+						
+						cm.objs = cm.objects.map(obj => ({ collision: !(obj.l || obj.col), pos: { x: obj.p[0], y: obj.p[1], z: obj.p[2] }, size: { x: obj.s[0], y: obj.s[1], z: obj.s[2] }, color: obj.c, opacity: obj.o == null ? 1 : obj.o  })).filter(obj =>
+							obj.collision &&
+							obj.opacity &&
+							obj.color &&
+							obj.size.x &&
+							obj.size.y && 
+							obj.size.z &&
+							obj.pos.y);
+						
+						cm.dims = { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } };
+						
+						cm.objs.forEach(obj => {
+							cm.dims.min.x = obj.pos.x < cm.dims.min.x ? obj.pos.x : cm.dims.min.x;
+							cm.dims.max.x = obj.pos.x > cm.dims.min.x ? obj.pos.x : cm.dims.min.x;
+							
+							cm.dims.min.z = obj.pos.z < cm.dims.min.z ? obj.pos.z : cm.dims.min.z;
+							cm.dims.max.z = obj.pos.z > cm.dims.min.z ? obj.pos.z : cm.dims.min.z;
+						});
+						
+						cm.dims.size = {
+							w: Math.abs(cm.dims.min.x) + Math.abs(cm.dims.max.x),
+							h: Math.abs(cm.dims.min.z) + Math.abs(cm.dims.max.z),
+						};
+						
+						cm.dims.min.x_abs = Math.abs(cm.dims.min.x);
+						cm.dims.min.z_abs = Math.abs(cm.dims.min.z);
+						
+						cm.objs = cm.objs.sort((pobj, obj) => (pobj.pos.y + pobj.size.y) - (obj.pos.y + obj.size.y));
+						
+						cm.obj_calc = cm.objs.map(obj => {
+							var cth = c => ((~~c).toString(16) + '').padStart(2, '0'),
+								htc = h => {
+									var [r, g, b] = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h).slice(1).map(n => parseInt(n, 16));
+									
+									return { r: r, g: g, b: b };
+								},
+								color = htc(obj.color.length == 4 ? '#' + obj.color.substr(1).split('').map(e => e+e).join('') : obj.color),
+								inc = (obj.pos.y + obj.size.y) / 3;
+							
+							return [
+								'#' + cth(color.r - inc) + cth(color.g - inc) + cth(color.b - inc),
+								[
+									~~(cm.mm.offset.x + ((cm.dims.min.x_abs + obj.pos.x) / cm.mm.scale)),
+									~~(cm.mm.offset.y + ((cm.dims.min.z_abs + obj.pos.z) / cm.mm.scale)),
+									~~(obj.size.x / cm.mm.scale),
+									~~(obj.size.z / cm.mm.scale)
+								],
+							];
+						});
+					}
+					
+					cm.obj_calc.forEach(calculated => (cheat.ctx.fillStyle = calculated[0], cheat.ctr('fillRect', calculated[1])));
+					
+					cheat.game.players.list.filter(ent => ent.isActive).forEach(ent => {
+						var wp = cm.dims.min.x_abs + ent.pos.x,
+							hp = cm.dims.min.z_abs + ent.pos.z,
+							cham_color = ent[cheat.vars.isYou] ? '#FFF' : (ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0');
+						
+						cheat.ctx.fillStyle = cheat.ctx.strokeStyle = cham_color;
+						
+						cheat.ctr('beginPath');
+						cheat.ctr('arc', [ cm.mm.offset.x + (wp / cm.mm.scale), cm.mm.offset.y + (hp / cm.mm.scale), 3, 0, 2 * Math.PI ]);
+						cheat.ctr('fill');
+						
+						if(ent[cheat.vars.isYou]){
+							cheat.ctr('beginPath');
+							cheat.ctr('moveTo', [ cm.mm.offset.x + (wp / cm.mm.scale), cm.mm.offset.y + (hp / cm.mm.scale) ]);
+							
+							var scalar = -250,
+								x = 0,
+								y = 0,
+								z = 1,
+								qx = ent.objInstances.quaternion.x,
+								qy = ent.objInstances.quaternion.y,
+								qz = ent.objInstances.quaternion.z,
+								qw = ent.objInstances.quaternion.w, // calculate quat * vector
+								ix = qw * x + qy * z - qz * y,
+								iy = qw * y + qz * x - qx * z,
+								iz = qw * z + qx * y - qy * x,
+								iw = -qx * x - qy * y - qz * z, // calculate result * inverse quat
+								nwp = cm.dims.min.x_abs + ent.pos.x + (ix * qw + iw * -qx + iy * -qz - iz * -qy) * scalar,
+								nhp = cm.dims.min.z_abs + ent.pos.z + (iz * qw + iw * -qz + ix * -qy - iy * -qx) * scalar;
+							
+							cheat.ctx.strokeStyle = cham_color;
+							cheat.ctx.lineWidth = 1.75;
+							cheat.ctx.lineCap = 'round';
+							
+							cheat.ctr('lineTo', [ cm.mm.offset.x + (nwp / cm.mm.scale) - cm.mm.player_size.w / 2, cm.mm.offset.y + (nhp / cm.mm.scale) - cm.mm.player_size.h / 2 ]);
+							cheat.ctr('stroke');
+						}
+					});
+				}
 				
 				// draw overlay stuff
 				if(config.game.overlay && cheat.game && cheat.ctx){
@@ -469,7 +615,7 @@ var fs = require('fs'),
 						esp_height = src_pos.y - src_pos_crouch.y,
 						esp_box_y = src_pos.y - esp_height,
 						// teammate = green, enemy = red, risk + enemy = orange
-						cham_color = ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0',
+						cham_color = ent[cheat.vars.isYou] ? '#FFF' : ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0',
 						cham_color_full = parseInt(cham_color.substr(1).split('').map(e => e+e).join(''), 16), // turn #FFF into #FFFFFF
 						chams_enabled = config.esp.status == 'chams' || config.esp.status == 'box_chams' || config.esp.status == 'full';
 					
@@ -583,20 +729,6 @@ var fs = require('fs'),
 					}
 				});
 			}catch(err){ cheat.err(err) }},
-			wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
-				var interval = setInterval(() => {
-					var checke = check();
-					
-					if(checke)clearInterval(interval); else return;
-					
-					resolve(checke);
-					interval = null;
-				}, 15);
-				
-				setTimeout(() => {
-					if(interval)return clearInterval(interval), reject('timeout');
-				}, timeout);
-			}),
 			find_vars: [
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
 				['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
@@ -621,12 +753,12 @@ var fs = require('fs'),
 				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
 				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
 				
-				['camLookAt', /this\['(\w+')\]=function\(\w+,\w+,\w+\){var \w+=\w+\['getXDire']\(this\['object']\['position']\['x']/, 1]
-				
+				['camLookAt', /this\['(\w+')\]=function\(\w+,\w+,\w+\){var \w+=\w+\['getXDire']\(this\['object']\['position']\['x']/, 1],
 			],
 			patches: new Map([
 				// wallbangs
 				[/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (!ssd.target.isAI && ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
+				
 				// get vars
 				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
 				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
@@ -684,35 +816,30 @@ var fs = require('fs'),
 					
 					cheat.event.emit('render');
 					
-					if(cheat.ws && !cheat.ws[cheat.symbols.hooked]){
-						cheat.ws[cheat.symbols.hooked] = true;
+					if(cheat.ws && !cheat.ws[cheat.syms.hooked]){
+						cheat.ws[cheat.syms.hooked] = true;
 						
 						cheat.ws.send = uhook(cheat.ws.send, (target, thisArg, [label, ...data]) => {
-							switch(label){
-								case'ent':
-			 						cheat.skin_conf = {
-										main: data[2][0],
-										secondary: data[2][1],
-										hat: data[3],
-										body: data[4],
-										knife: data[9],
-										dye: data[14],
-										waist: data[17],
-									};
-									break
-							}
-							
+							if(label == 'ent' && config.game.skins)cheat.skin_conf = {
+								main: data[2][0],
+								secondary: data[2][1],
+								hat: data[3],
+								body: data[4],
+								knife: data[9],
+								dye: data[14],
+								waist: data[17],
+							};
 							
 							return n.Reflect.apply(target, thisArg, [label, ...data]);
 						});
 						
 						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, thisArg, argArray) => {
-							if(argArray[0] == 0 && cheat.skin_conf){
+							if(config.game.skins && argArray[0] == 0 && cheat.skin_conf){
 								// sending server player data
 								var player_size = 38,
 									pd = argArray[1][0];
 								
-								while(pd.length % player_size != 0)player_size++;
+								for (;(pd.length % player_size) > 0;)player_size++;
 								
 								for(var i = 0; i < pd.length; i += player_size)if(pd[i] === cheat.ws.socketId){
 									pd[i + 12] = [cheat.skin_conf.main, cheat.skin_conf.secondary];
@@ -726,6 +853,25 @@ var fs = require('fs'),
 							
 							return n.Reflect.apply(target, thisArg, argArray);
 						});
+						
+						if(cheat.controls && cheat.gconfig && !cheat.gconfig[cheat.syms.hooked]){
+							cheat.gconfig[cheat.syms.hooked] = true;
+							
+							var orig_camChaseTrn = cheat.gconfig.camChaseTrn,
+								orig_target = cheat.controls.target;
+							
+							// 0.025
+							
+							Reflect.defineProperty(cheat.gconfig, 'camChaseTrn', {
+								get: _ => cheat.moving_camera ? ((50 - config.aim.smoothn) / 1000) : orig_camChaseTrn,
+								set: v => orig_camChaseTrn = v,
+							});
+							
+							Reflect.defineProperty(cheat.controls, 'target', {
+								get: _ => cheat.moving_camera ? cheat.moving_camera : orig_target,
+								set: v => orig_target = v,
+							});
+						}
 					}	
 					
 					try{
@@ -756,19 +902,19 @@ var fs = require('fs'),
 							
 							cheat.log('injected to game');
 							
-							cheat.log('hiding: ' + cheat.objects.storage + '.' + cheat.randoms.storage, window[cheat.objects.storage][cheat.randoms.storage]);
-							window[cheat.objects.storage][cheat.randoms.storage] = void 0;
+							cheat.log('hiding: ' + cheat.objs.storage + '.' + cheat.rnds.storage, window[cheat.objs.storage][cheat.rnds.storage]);
+							window[cheat.objs.storage][cheat.rnds.storage] = void 0;
 							
 							break
 					}
 				},
 			},
 			inputs: [],
-		};
+		});
 		
 		// pass storage object to game
 		cheat.patches.set(/^/, '(ssd => { return ');
-		cheat.patches.set(/$/g, '})(' + cheat.objects.storage + '.' + cheat.randoms.storage + '())');
+		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '())');
 		
 		setInterval(cheat.process_interval, 1000);
 		
@@ -781,6 +927,9 @@ var fs = require('fs'),
 			cheat.key_press(18, 'Alt', 'AltLeft', 'keyup');
 		});
 		
+		// remove later
+		window.cheese = cheat;
+		
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
 		
 		window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
@@ -788,12 +937,6 @@ var fs = require('fs'),
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
-		
-		// remove later
-		window.cheese = cheat;
-		
-		// dont pass the fucking object again
-		cheat.event.vars = {...cheat.vars};
 		
 		cheat.event.load_css_url = new Proxy(()=>{}, { apply(a,b, [ url = '' ]){
 			try{ var url = new URL(url) }catch(err){ return 'invalid URL' };
@@ -911,9 +1054,11 @@ var fs = require('fs'),
 						else cheat.vars_not_found.push(label), cheat.vars[label] = label;
 					});
 					
+					cheat.event.vars = Object.assign({}, cheat.vars);
+					
 					if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));
 					
-					window[cheat.objects.storage][cheat.randoms.storage] = uhook(window[cheat.objects.storage], () => cheat.storage);
+					window[cheat.objs.storage][cheat.rnds.storage] = uhook(window[cheat.objs.storage], () => cheat.storage);
 					
 					return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
 				}));

@@ -437,7 +437,7 @@ var main = async () => {
 										control.slider_bg.style.width = perc_rounded + '%'
 										control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
 										
-										control.val_set(value);
+										control.val_set(Number(value));
 									}
 								};
 							
@@ -480,8 +480,8 @@ var main = async () => {
 						interact: control.interact,
 					});
 				},
-				mouse_move_frame = () => {
-					var mouse_pos = electron.remote.screen.getCursorScreenPoint(),
+				mouse_move_frame = async () => {
+					var mouse_pos = await electron.ipcRenderer.invoke('mouse_pos'),
 						region = {
 							x: window.screenX,
 							y: window.screenY,
@@ -700,10 +700,24 @@ var main = async () => {
 				}],
 				key: 'unset',
 			},{
+				name: 'Smoothness',
+				type: 'slider',
+				val_get: _ => values.config.aim.smoothn,
+				val_set: v => values.config.aim.smoothn = v,
+				min_val: 0,
+				max_val: 50,
+				unit: 10,
+			},{
 				name: 'Smooth',
 				type: 'bool',
 				val_get: _ => values.config.aim.smooth,
 				val_set: v => values.config.aim.smooth = v,
+				key: 'unset',
+			},{
+				name: 'Triggerbot',
+				type: 'bool',
+				val_get: _ => values.config.aim.triggerbot,
+				val_set: v => values.config.aim.triggerbot = v,
 				key: 'unset',
 			},{
 				name: 'Auto reload',
@@ -733,6 +747,12 @@ var main = async () => {
 		},{
 			name: 'Esp',
 			contents: [{
+				name: 'Minimap',
+				type: 'bool',
+				val_get: _ => values.config.esp.minimap,
+				val_set: v => values.config.esp.minimap = v,
+				key: 'unset',
+			},{
 				name: 'Health bars',
 				type: 'bool',
 				val_get: _ => values.config.esp.health_bars,
