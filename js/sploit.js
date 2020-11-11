@@ -3,9 +3,6 @@ var fs = require('fs'),
 	path = require('path'),
 	electron = require('electron'),
 	cheat = {
-		module: module,
-		require: require,
-		processe: process,
 		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 			var interval = setInterval(() => {
 				var checked = check();

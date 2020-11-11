@@ -57,11 +57,11 @@ module.exports = {
 			// load custom options if we obfuscate
 			try{
 				if(options.obio){
-					var modules = [ './consts.js', './media.js' ],
+					var modules = [ './consts.js', './media.js', './v8-compile-cache.js' ],
 						requires_string = '{' + modules.map(file => '"' + file + '":' + mod.wrap(fs.readFileSync(path.join(__dirname, file), 'utf8')).replace(/.$/, '')).join(',') + '}';
 					
 					fs.writeFileSync(file_obfus, jsob.obfuscate(
-						'var mod = require("module"), ss_requires = ' + requires_string + ', ss_require = file => { var exports = {}, module = { get exports(){ return exports }, set exports(v){ exports = v } }; ss_requires[file](exports, mod.createRequire(__dirname), module, __filename, __dirname); console.log(exports); return exports; }; '
+						'var mod = require("module"), ss_requires = ' + requires_string + ', ss_require = file => { var exports = {}, module = { get exports(){ return exports }, set exports(v){ exports = v } }; ss_requires[file](exports, mod.createRequire(__dirname), module, __filename, __dirname); return exports; }; '
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));
 				}
 			}catch(err){

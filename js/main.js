@@ -1,5 +1,5 @@
 'use strict';
-require('./v8-compile-cache.js');
+ss_require('./v8-compile-cache.js');
 var fs = require('fs'),
 	os = require('os'),
 	url = require('url'),
@@ -114,6 +114,10 @@ var fs = require('fs'),
 			width: 400,
 			height: 400,
 		},
+		ad: {
+			width: 600,
+			height: 700,
+		},
 	},
 	valid_json = data => { try { return JSON.parse(data) } catch(err) { return false } },
 	update_config = () => fs.writeFileSync(values.files.config, JSON.stringify(values.config, null, '\t')),
@@ -207,6 +211,39 @@ var fs = require('fs'),
 			
 			electron.ipcMain.on('prompt-response', (event, args) => response = args == '' ? null : args);			
 		},
+		ad(){
+			wins.ad = setup_win({
+				...sizes.ad,
+				frame: true,
+				resizable: false,
+				center: true,
+				shadow: false,
+				backgroundColor: '#000',
+			});	
+			
+			wins.ad.loadURL(values.consts.ad_url);
+			
+			wins.ad.once('ready-to-show', () => wins.splash && wins.splash.destroy());
+			
+			wins.ad.setMenu(null);
+			
+			wins.ad.webContents.on('did-finish-load', () => {
+				wins.ad.webContents.executeJavaScript(`
+setInterval(() => {
+	document.querySelectorAll('.slick-list, .search, .sidebar, .login, .suggestion-wrapper, lv-footer').forEach(node => node.style.display = 'none')
+	document.querySelectorAll('.navigation-mobile, lv-msnnewsfeed, lv-suggestions').forEach(node => node.style['pointer-events'] = 'none');
+}, 100);
+
+window.open = new Proxy(window.open, {
+	apply(target, thisArg, argArray){
+		if(!argArray[0].includes('example.org'))return {};
+		
+		return Reflect.apply(target, thisArg, argArray);
+	}
+});
+				`);
+			});
+		},
 		splash(){
 			wins.splash = setup_win({
 				...sizes.splash,
@@ -238,6 +275,9 @@ var fs = require('fs'),
 						splash_countdown(wins.splash, ['Error during setup, visiting downloads instead'], 5).then(electron.app.quit);
 						
 						electron.shell.openExternal(updates.latest.url);
+					},
+					run_main = () => {
+						init.ad();
 					};
 				 
 				// update check
@@ -287,8 +327,9 @@ var fs = require('fs'),
 					
 					wins.splash.message(note, 'Loading...');
 					
-					setTimeout(init.main, init_delay);
-				}).catch(err => (note = 'Error showing splash: ' + err.message, init.main()));
+					// setTimeout(init.main, init_delay);
+					run_main();
+				}).catch(err => (note = 'Error showing splash: ' + err.message, run_main()));
 			});
 			
 			wins.splash.loadURL('data:text/html,' + encodeURIComponent(media.splash(values)));
@@ -300,11 +341,6 @@ var fs = require('fs'),
 				backgroundColor: '#000',
 				thickFrame: true,
 				webPreferences: { preload: path.join(values.consts.app_dir, 'preload.js') },
-			});
-			
-			electron.session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-				details.requestHeaders['user-agent'] = values.useragent;
-				callback({ cancel: false, requestHeaders: details.requestHeaders });
 			});
 			
 			wins.game.setMenu(null);
@@ -319,7 +355,7 @@ var fs = require('fs'),
 			});
 			
 			wins.game.once('ready-to-show', () => {
-				wins.splash.destroy();
+				if(wins.splash)wins.splash.destroy();
 				init.cheat();
 			});
 			
@@ -666,6 +702,11 @@ electron.app.once('ready', () => {
 		update_config();
 	});
 	
+	electron.session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+		details.requestHeaders['user-agent'] = values.useragent;
+		callback({ cancel: false, requestHeaders: details.requestHeaders });
+	});
+	
 	// adblock
 	var netb = [
 		'​/tagmanager/pptm.',
@@ -681,8 +722,12 @@ electron.app.once('ready', () => {
 	electron.session.defaultSession.webRequest.onBeforeRequest({ urls: [ '*://*/*' ] }, (details, callback) => {
 		var furl = url.parse(details.url);
 		
+		if(furl.host == 'example.org'){
+			console.log('licensing complete');
+		}
+		
 		if(values.config.client.adblock && netb.some(reg => reg.constructor == String ? details.url.includes(reg) : reg.test(details.url)))callback({ cancel: true });
-		else callback({});
+		else callback({ requestHeaders: details.requestHeaders });
 		
 	});
 });
