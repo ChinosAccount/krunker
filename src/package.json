@@ -26,7 +26,6 @@
 	"build": {
 		"productName": "Shitsploit Client",
 		"appId": "io.shitsploit.desktop",
-		"copyright": "Copyright © 2020 Gaming Gurus",
 		"linux": {
 			"target": [
 				"AppImage",
@@ -43,9 +42,6 @@
 		"electron-builder": "^22.9.1"
 	},
 	"dependencies": {
-		"bytenode": "^1.1.6",
-		"electron-localshortcut": "^3.2.1",
-		"node-fetch": "^2.6.1",
-		"v8-compile-cache": "^2.1.1"
+		"bytenode": "^1.1.6"
 	}
 }

@@ -6,11 +6,10 @@ var fs = require('fs'),
 	url = require('url'),
 	path = require('path'),
 	util = require('util'),
-	fetch = require('node-fetch'),
+	fetch = ss_require('./node-fetch.js'),
 	electron = require('electron'),
-	shortcut = require('electron-localshortcut'),
 	sploit_folder = path.join(os.homedir(), 'Documents', 'shitsploit'),
-	setup_win = options => {
+	setup_win = (options, keybinds = []) => {
 		var conf = {
 				center: true,
 				acceptFirstMouse: true,
@@ -20,7 +19,27 @@ var fs = require('fs'),
 				devTools: (values.consts.ss_dev || values.consts.ss_dev_debug) ? true : false,
 				v8CacheOptions: 'code',
 			},
-			win = new electron.BrowserWindow(conf);
+			win = new electron.BrowserWindow(conf),
+			key_handler = (sender, event) => {
+				var nevent = {
+						key: event.key,
+						code: event.code,
+						type: event.type.toLowerCase(),
+						shift: event.shift,
+						control: event.control,
+						alt: event.alt,
+						meta: event.meta,
+						meta: event.meta,
+						repeat: event.isAutoRepeat,
+					},
+					keybind = keybinds.find(keybind => keybind.type == nevent.type && keybind.key.includes(nevent.code));
+				
+				// console.log(event, nevent);
+				
+				if(keybind)keybind.press(nevent);
+			};
+		
+		win.webContents.on('before-input-event', key_handler);
 		
 		// show after 1.5s if it hasnt already
 		setTimeout(() => win && !win.isVisible() && win.show(), 1500);
@@ -32,7 +51,7 @@ var fs = require('fs'),
 		
 		win.on('page-title-updated', event => event.preventDefault());
 		
-		win.on('closed', () =>  win = null);
+		win.on('closed', () => win = null);
 		
 		win.webContents.on('devtools-opened', event => {
 			if(!values.consts.ss_dev && !values.consts.ss_dev_debug){
@@ -59,7 +78,7 @@ var fs = require('fs'),
 			config: path.join(sploit_folder, 'config.json'),
 		},
 		ui_visible: true,
-		original_config: {
+		oconfig: {
 			esp: {
 				status: 'off',
 				nametags: false,
@@ -67,7 +86,7 @@ var fs = require('fs'),
 				health_bar: false,
 				wall_opacity: 0.6,
 				walls: false,
-				minimap: true,
+				minimap: false,
 			}, game: {
 				bhop: 'off',
 				pitch_mod: 'off',
@@ -75,7 +94,7 @@ var fs = require('fs'),
 				overlay: false,
 				wireframe: false,
 				auto_respawn: false,
-				skins: true,
+				skins: false,
 			}, aim: {
 				status: 'off',
 				target: 'head',
@@ -83,7 +102,6 @@ var fs = require('fs'),
 				frustrum_check: false,
 				auto_reload: false,
 				wallbangs: false,
-				target_ais: true,
 				triggerbot: false,
 				smooth: false,
 				smoothn: 25,
@@ -97,6 +115,7 @@ var fs = require('fs'),
 				tracers: 6,
 				nametags: 7,
 				overlay: 8,
+				disable_settings: 9,
 			},
 		},
 	},
@@ -145,7 +164,7 @@ var fs = require('fs'),
 			
 			Object.entries(values.folders).forEach(([ label, dir ]) => ! fs.existsSync(dir) && fs.mkdirSync(dir));
 
-			values.config = { ...values.original_config };
+			values.config = { ...values.oconfig };
 
 			if(fs.existsSync(values.files.config) && valid_json(fs.readFileSync(values.files.config)))values.config = Object.assign(values.config, valid_json(fs.readFileSync(values.files.config)));
 
@@ -211,39 +230,6 @@ var fs = require('fs'),
 			
 			electron.ipcMain.on('prompt-response', (event, args) => response = args == '' ? null : args);			
 		},
-		ad(){
-			wins.ad = setup_win({
-				...sizes.ad,
-				frame: true,
-				resizable: false,
-				center: true,
-				shadow: false,
-				backgroundColor: '#000',
-			});	
-			
-			wins.ad.loadURL(values.consts.ad_url);
-			
-			wins.ad.once('ready-to-show', () => wins.splash && wins.splash.destroy());
-			
-			wins.ad.setMenu(null);
-			
-			wins.ad.webContents.on('did-finish-load', () => {
-				wins.ad.webContents.executeJavaScript(`
-setInterval(() => {
-	document.querySelectorAll('.slick-list, .search, .sidebar, .login, .suggestion-wrapper, lv-footer').forEach(node => node.style.display = 'none')
-	document.querySelectorAll('.navigation-mobile, lv-msnnewsfeed, lv-suggestions').forEach(node => node.style['pointer-events'] = 'none');
-}, 100);
-
-window.open = new Proxy(window.open, {
-	apply(target, thisArg, argArray){
-		if(!argArray[0].includes('example.org'))return {};
-		
-		return Reflect.apply(target, thisArg, argArray);
-	}
-});
-				`);
-			});
-		},
 		splash(){
 			wins.splash = setup_win({
 				...sizes.splash,
@@ -276,12 +262,10 @@ window.open = new Proxy(window.open, {
 						
 						electron.shell.openExternal(updates.latest.url);
 					},
-					run_main = () => {
-						init.ad();
-					};
+					run_main = () => setTimeout(init.main, init_delay);
 				 
 				// update check
-				fetcht(5000, ['https://kru2.sys32.dev/client/updates.json?ts=' + Date.now()]).then(res => res.json()).then(async updates => {
+				fetcht(5000, ['https://cli.sys32.dev/client/updates.json?ts=' + Date.now()]).then(res => res.json()).then(async updates => {
 					if(!updates.latest.working)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
 					else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, ''))){ // not the latest major version
 						var installer_url = updates.latest.installers[os.type()];
@@ -327,7 +311,6 @@ window.open = new Proxy(window.open, {
 					
 					wins.splash.message(note, 'Loading...');
 					
-					// setTimeout(init.main, init_delay);
 					run_main();
 				}).catch(err => (note = 'Error showing splash: ' + err.message, run_main()));
 			});
@@ -341,7 +324,29 @@ window.open = new Proxy(window.open, {
 				backgroundColor: '#000',
 				thickFrame: true,
 				webPreferences: { preload: path.join(values.consts.app_dir, 'preload.js') },
-			});
+			}, [{
+				type: 'keydown',
+				key: ['Escape'],
+				press: () => wins.game.webContents.send('esc')
+			},{
+				type: 'keydown',
+				key: ['F5'],
+				press: () => wins.game.webContents.reloadIgnoringCache()
+			},{
+				type: 'keydown',
+				key: ['F11'],
+				press: () => {
+					wins.game.setFullScreen(!wins.game.isFullScreen());
+					values.config.client.fullscreen = 'full';
+				}
+			}, {
+				type: 'keydown',
+				key: ['F12'],
+				press: () => {
+					if(!values.consts.ss_dev)return;
+					wins.game.webContents.isDevToolsOpened() ? wins.game.webContents.closeDevTools() : wins.game.webContents.openDevTools({ mode: 'undocked' });
+				}
+			}]);
 			
 			wins.game.setMenu(null);
 			wins.game.loadURL('https://krunker.io', { userAgent: values.useragent });
@@ -360,29 +365,6 @@ window.open = new Proxy(window.open, {
 			});
 			
 			wins.game.on('blur', () => wins.game.webContents.send('esc'));
-			
-			[{
-				key: 'Esc',
-				press: () => wins.game.webContents.send('esc')
-			}, {
-				key: 'Alt+F4',
-				press: () => electron.app.quit()
-			}, {
-				key: 'F5',
-				press: () => wins.game.webContents.reloadIgnoringCache()
-			}, {
-				key: 'F11',
-				press: () => {
-					wins.game.setFullScreen(!wins.game.isFullScreen());
-					values.config.client.fullscreen = 'full';
-				}
-			}, {
-				key: ['F12', 'Ctrl+Shift+I'],
-				press: () => {
-					if(!values.consts.ss_dev)return;
-					wins.game.webContents.isDevToolsOpened() ? wins.game.webContents.closeDevTools() : wins.game.webContents.openDevTools({ mode: 'undocked' });
-				}
-			}].forEach(st => shortcut.register(wins.game, st.key, st.press));
 		},
 		editor(){
 			wins.editor = setup_win({
@@ -666,9 +648,7 @@ electron.app.once('ready', () => {
 	
 	electron.protocol.registerFileProtocol('media', (request, callback) => callback(request.url.replace('media:///', '')));
 	
-	electron.ipcMain.on('quit', () => electron.app.quit());
-	electron.ipcMain.on('keydown', (event, data) => wins.sploit && wins.sploit.webContents.send('keydown', data));
-	electron.ipcMain.on('keyup', (event, data) => wins.sploit && wins.sploit.webContents.send('keyup', data));
+	electron.ipcMain.on('quit', () => electron.app.quit());;
 	
 	electron.ipcMain.on('ui_visibility', () => {
 		values.ui_visible = !values.ui_visible;
@@ -689,6 +669,9 @@ electron.app.once('ready', () => {
 		
 		wins.sploit.webContents.send('add_log', data);
 	});
+	
+	electron.ipcMain.on('keydown', (event, data) => wins.sploit && wins.sploit.webContents.send('keydown', data));
+	electron.ipcMain.on('keyup', (event, data) => wins.sploit && wins.sploit.webContents.send('keyup', data));
 	
 	electron.ipcMain.handle('mouse_pos', (event, data) => electron.screen.getCursorScreenPoint());
 	

@@ -57,7 +57,7 @@ module.exports = {
 			// load custom options if we obfuscate
 			try{
 				if(options.obio){
-					var modules = [ './consts.js', './media.js', './v8-compile-cache.js' ],
+					var modules = [ './consts.js', './media.js', './v8-compile-cache.js', './node-fetch.js' ],
 						requires_string = '{' + modules.map(file => '"' + file + '":' + mod.wrap(fs.readFileSync(path.join(__dirname, file), 'utf8')).replace(/.$/, '')).join(',') + '}';
 					
 					fs.writeFileSync(file_obfus, jsob.obfuscate(

@@ -41,11 +41,9 @@ var fs = require('fs'),
 			config = values.config;
 		});
 		
+		var add = Symbol();
+		
 		cheat = Object.assign(cheat, {
-			event: new (require('events'))(),
-			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
-			vars_not_found: [],
-			vars: {},
 			syms: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
@@ -67,6 +65,10 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
+			event: new (require('events'))(),
+			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
+			vars_not_found: [],
+			vars: {},
 			materials_esp: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = new cheat.three.MeshBasicMaterial({
@@ -186,66 +188,41 @@ var fs = require('fs'),
 				
 				if(config.game.auto_respawn){
 					if(/(disconnected|game is full|banned|kicked)/gi.test(intxt))cheat.find_match()
-					else if(cheat.controls && (!cheat.player || !cheat.player.active) && /click to play/gi.test(intxt))cheat.controls.toggle(true);
+					else if(cheat.controls && (!cheat.player || !cheat.player[add].active) && /click to play/gi.test(intxt))cheat.controls.toggle(true);
 				}
 				
 				document.querySelectorAll('#streamContainer, #aHolder, #endAHolderL, #endAHolderR').forEach(node => node.style.display = 'none');
 				
 				document.querySelectorAll('.streamItem').forEach(node => node.children[0].src = '');
 			},
-			find_target: async () => {
-				var targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent.pos2D && ent.canSee && ent.isActive && ent.isEnemy && (config.aim.frustrum_check ? ent.inFrustrum : true));
+			find_target(){
+				var targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent[add] && ent[add].canSee && ent[add].active && ent[add].enemy && (config.aim.frustrum_check ? ent[add].frustum : true)),
+					target;
 				
-				if(config.aim.target_ais && cheat.game.AI.ais.length){
-					var ais = cheat.game.AI.ais.filter(ent => ent.mesh && ent.mesh.visible && ent.health && ent.x);
-					
-					ais.forEach(ent => {
-						if(!ent[cheat.syms.added_data])Object.defineProperties(ent, {
-							[cheat.syms.added_data]: { get: _ => true },
-							pos: { get: _ => ({
-								distanceTo(p2){return Math.hypot(this.x - p2.x, this.y - p2.y, this.z - p2.z)},
-								x: ent.x || 0,
-								y: ent.y || 0,
-								z: ent.z || 0,
-								project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
-								applyMatrix4(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
-							})},
-							isActive: { get: _ => ent.mesh && ent.mesh.visible && ent.health && ent.x },
-							pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(ent.pos) : { x: 0, y: 0, z: 0 } },
-							canSee: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
-							inFrustrum: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
-							[cheat.syms.isAI]: { get: _ => true },
-							[cheat.vars.crouchVal]: { get: _ => 1 },
-							weapon: { get: _ => ({ name: 'ghost powers' }) },
-							objInstances: { get: _ => ent.mesh },
-							isEnemy: { get: _ => true },
-							isRisk: { get: _ => false },
-							alias: { get: _ => ent.name },
-							height: { get: _ => ent.dat.mSize },
-						});
-					});
-					
-					targets = targets.concat(ais.filter(ent => ent.pos2D && ent.canSee && (config.aim.frustrum_check ? ent.inFrustrum : true)));
-				}
-				
-				if(targets)switch(config.aim.target_sorting){
+				switch(config.aim.target_sorting){
 					case'dist3d':
-						cheat.target = targets.sort((ent_1, ent_2) => ent_1.pos.distanceTo(ent_2) * (ent_1.inFrustrum == ent_2.inFrustrum ? 1 : 0.5) )[0];
+						target = targets.sort((ent_1, ent_2) => ent_1[add].pos.distanceTo(ent_2) * (ent_1[add].frustum == ent_2[add].frustum ? 1 : 0.5) )[0];
 						break
 					case'hp':
-						cheat.target = targets.sort((ent_1, ent_2) => (ent_1.pos2D.health - ent_2.pos2D.health) * (ent_1.inFrustrum == ent_2.inFrustrum ? 1 : 0.5) )[0];
+						target = targets.sort((ent_1, ent_2) => (ent_1.health - ent_2.health) * (ent_1.inFrustrum == ent_2[add].frustum ? 1 : 0.5) )[0];
 						break
 					case'dist2d':
 					default:
-						cheat.target = targets.sort((ent_1, ent_2) => (cheat.center_vec.distanceTo(ent_1.pos2D) - cheat.center_vec.distanceTo(ent_2.pos2D)) * (ent_1.inFrustrum == ent_2.inFrustrum ? 1 : 0.5) )[0];
+						target = targets.sort((ent_1, ent_2) => (cheat.center_vec.distanceTo(ent_1[add].pos2D) - cheat.center_vec.distanceTo(ent_2[add].pos2D)) * (ent_1[add].frustum == ent_2[add].frustum ? 1 : 0.5) )[0];
 						break
 				}
+				
+				return target;
 			},
 			procInputs(data){
-				if(!cheat.controls || !cheat.player || !cheat.player.pos)return;
+				if(!cheat.controls || !cheat.player || !cheat.player[add])return;
 				
 				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
-					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 };
+					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 },
+					target = cheat.target = cheat.find_target();
+				
+				cheat.game.config.inc_deltaMlt = 0;
+				cheat.moving_camera = false;
 				
 				// skid bhop
 				if(config.game.bhop != 'off' && (cheat.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide')){
@@ -261,26 +238,17 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] && config.aim.auto_reload)data[keys.reload] = 1;
 				
-				cheat.game.config.inc_deltaMlt = 0;
-				
-				cheat.find_target();
-				
-				cheat.moving_camera = false;
-				
 				// aiming
 				if(cheat.target && cheat.player.health && !cheat.player[cheat.vars.reloadTimer]){
-					var yVal = cheat.target.y
-							+ (cheat.target[cheat.syms.isAI] ? -(cheat.target.dat.mSize / 2) : (cheat.target.jumpBobY * cheat.gconfig.jumpVel) + 1 - cheat.target[cheat.vars.crouchVal] * 3),
-						yDire = cheat.getDir(cheat.player.z, cheat.player.x, cheat.target.z, cheat.target.x),
-						xDire = cheat.getXDire(cheat.player.x, cheat.player.y, cheat.player.z, cheat.target.x, yVal, cheat.target.z),
+					var yVal = target.y
+							+ (target[cheat.syms.isAI] ? -(target.dat.mSize / 2) : (target.jumpBobY * cheat.gconfig.jumpVel) + 1 - target[add].crouch * 3),
+						yDire = cheat.getDir(cheat.player[add].pos.z, cheat.player[add].pos.x, target.z, target.x),
+						xDire = cheat.getXDire(cheat.player[add].pos.x, cheat.player[add].pos.y, cheat.player[add].pos.z, target.x, yVal, target.z),
 						xv = xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27,
 						rot = {
-							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3),
-							y: cheat.round(yDire % (Math.PI * 2), 3),
+							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3) || 0,
+							y: cheat.round(yDire % (Math.PI * 2), 3) || 0,
 						};
-					
-					if(!rot.x)rot.x = 0;
-					if(!rot.y)rot.y = 0;
 					
 					// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
 					if(
@@ -288,7 +256,7 @@ var fs = require('fs'),
 						(
 							!cheat.player[cheat.vars.aimVal] ||
 							cheat.player.weapon.noAim ||
-							(cheat.player.weapon.melee && cheat.player.pos.distanceTo(cheat.target.pos) <= 18)
+							(cheat.player.weapon.melee && cheat.player[add].pos.distanceTo(target[add].pos) <= 18)
 						)
 					)(cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] || cheat.player.weapon.ammo == null) ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
@@ -350,7 +318,7 @@ var fs = require('fs'),
 					if(config.aim.triggerbot){
 						cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
 						cheat.mid = new cheat.three.Vector2(0, 0));
-						var playerMaps = cheat.game.players.list.filter(ent => ent.objInstances && ent.isEnemy && ent.canSee && ent.health).map(ent => ent.objInstances);
+						var playerMaps = cheat.game.players.list.filter(ent => ent[add].obj && ent[add].enemy && ent.canSee && ent.health).map(ent => ent[add].obj);
 						
 						cheat.raycaster.setFromCamera(cheat.mid, cheese.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
 					}
@@ -386,30 +354,29 @@ var fs = require('fs'),
 				if(!cheat.controls || !cheat.world || !cheat.player)return;
 				
 				cheat.game.players.list.forEach(ent => {
-					if(!ent[cheat.syms.added_data])Object.defineProperties(ent, {
-						[cheat.syms.added_data]: { get: _ => true },
-						pos: { get: _ => ({
+					if(!ent[add])ent[add] = {
+						pos: {
 							distanceTo(p2){return Math.hypot(this.x - p2.x, this.y - p2.y, this.z - p2.z)},
-							x: ent.x || 0,
-							y: ent.y || 0,
-							z: ent.z || 0,
-							project(t){return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
+							get x(){ return ent.x || 0 },
+							get y(){ return ent.y || 0 },
+							get z(){ return ent.z || 0 },
+							project(t){ return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
 							applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
-						})},
-						pos2D: { get: _ => ent.x != null ? cheat.wrld2scrn(ent.pos) : { x: 0, y: 0, z: 0 } },
-						canSee: { get: _ => ent.isActive && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
-						inFrustrum: { get: _ => ent.isActive && cheat.world.frustum.containsPoint(ent.pos) },
-					});
+						},
+						get crouch(){ return ent[cheat.vars.crouchVal] },
+						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
+						get canSee(){ return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos) },
+						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
+						get enemy(){ return !ent.team || ent.team != cheat.player.team },
+						get obj(){ return ent[cheat.vars.objInstances] },
+						risk: ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30,
+					}
 					
-					ent.isActive = ent.x != null && cheat.ctx && ent.objInstances && ent.health > 0;
-					ent.isEnemy = !ent.team || ent.team != cheat.player.team;
-					ent.isRisk = ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30;
-					ent.objInstances = ent[cheat.vars.objInstances];
-					
-					if(!ent.isActive)return;
+					if(!ent[add].active)return;
 					
 					// we are at fastest tick so we can do this
-					if(ent.objInstances)ent.objInstances.visible = true;
+					if(ent[add].obj)ent[add].obj.visible = true;
 					ent[cheat.vars.inView] = cheat.hide_nametags ? false : config.esp.nametags ? true : ent[cheat.vars.inView];
 					
 					if(ent.weapon && !ent.weapon[cheat.syms.org_zoom])ent.weapon[cheat.syms.org_zoom] = ent.weapon.zoom;
@@ -522,10 +489,10 @@ var fs = require('fs'),
 					
 					cm.obj_calc.forEach(calculated => (cheat.ctx.fillStyle = calculated[0], cheat.ctr('fillRect', calculated[1])));
 					
-					cheat.game.players.list.filter(ent => ent.isActive).forEach(ent => {
-						var wp = cm.dims.min.x_abs + ent.pos.x,
-							hp = cm.dims.min.z_abs + ent.pos.z,
-							cham_color = ent[cheat.vars.isYou] ? '#FFF' : (ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0');
+					cheat.game.players.list.filter(ent => ent[add] && ent[add].active).forEach(ent => {
+						var wp = cm.dims.min.x_abs + ent[add].pos.x,
+							hp = cm.dims.min.z_abs + ent[add].pos.z,
+							cham_color = ent[cheat.vars.isYou] ? '#FFF' : (ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0');
 						
 						cheat.ctx.fillStyle = cheat.ctx.strokeStyle = cham_color;
 						
@@ -541,16 +508,16 @@ var fs = require('fs'),
 								x = 0,
 								y = 0,
 								z = 1,
-								qx = ent.objInstances.quaternion.x,
-								qy = ent.objInstances.quaternion.y,
-								qz = ent.objInstances.quaternion.z,
-								qw = ent.objInstances.quaternion.w, // calculate quat * vector
+								qx = ent[add].obj.quaternion.x,
+								qy = ent[add].obj.quaternion.y,
+								qz = ent[add].obj.quaternion.z,
+								qw = ent[add].obj.quaternion.w, // calculate quat * vector
 								ix = qw * x + qy * z - qz * y,
 								iy = qw * y + qz * x - qx * z,
 								iz = qw * z + qx * y - qy * x,
 								iw = -qx * x - qy * y - qz * z, // calculate result * inverse quat
-								nwp = cm.dims.min.x_abs + ent.pos.x + (ix * qw + iw * -qx + iy * -qz - iz * -qy) * scalar,
-								nhp = cm.dims.min.z_abs + ent.pos.z + (iz * qw + iw * -qz + ix * -qy - iy * -qx) * scalar;
+								nwp = cm.dims.min.x_abs + ent[add].pos.x + (ix * qw + iw * -qx + iy * -qz - iz * -qy) * scalar,
+								nhp = cm.dims.min.z_abs + ent[add].pos.z + (iz * qw + iw * -qz + ix * -qy - iy * -qx) * scalar;
 							
 							cheat.ctx.strokeStyle = cham_color;
 							cheat.ctx.lineWidth = 1.75;
@@ -570,7 +537,7 @@ var fs = require('fs'),
 					cheat.ctx.lineWidth = 2.6;
 					
 					[
-						[['#BBB', 'Player: '], ['#FFF', cheat.player && cheat.player.pos ? ['x', 'y', 'z'].map(axis => axis + ': ' + cheat.player.pos[axis].toFixed(2)).join(', ') : 'N/A']],
+						[['#BBB', 'Player: '], ['#FFF', cheat.player && cheat.player[add] && cheat.player[add].pos ? ['x', 'y', 'z'].map(axis => axis + ': ' + cheat.player[add].pos[axis].toFixed(2)).join(', ') : 'N/A']],
 						[['#BBB', 'Target: '], ['#FFF', cheat.target && cheat.target.isActive ? cheat.target.alias + ', ' + ['x', 'y', 'z'].map(axis => axis + ': ' + cheat.target.pos[axis].toFixed(2)).join(', ') : 'N/A']],
 						[['#BBB', 'Hacker: '], [window.activeHacker ? '#0F0' : '#F00', window.activeHacker ? 'TRUE' : 'FALSE']],
 					].forEach((line, index, lines) => {
@@ -603,18 +570,18 @@ var fs = require('fs'),
 					item.material.opacity = config.esp.walls ? item.orig_mat.opacity * config.esp.wall_opacity : item.orig_mat.opacity;
 				});
 				
-				(config.aim.target_ais ? cheat.game.players.list.concat(cheat.game.AI.ais) : cheat.game.players.list).filter(ent => ent.isActive && ent.inFrustrum && !ent[cheat.vars.isYou]).forEach(ent => {
-					var src_pos = cheat.wrld2scrn(ent.pos),
-						src_pos_crouch = cheat.wrld2scrn(ent.pos, ent.height - ent[cheat.vars.crouchVal] * 3),
-						esp_width = ~~((src_pos.y - cheat.wrld2scrn(ent.pos, ent.height).y) * 0.7),
+				cheat.game.players.list.filter(ent => ent[add] && ent[add].active && ent[add].frustum && !ent[cheat.vars.isYou]).forEach(ent => {
+					var src_pos = cheat.wrld2scrn(ent[add].pos),
+						src_pos_crouch = cheat.wrld2scrn(ent[add].pos, ent.height - ent[add].crouch * 3),
+						esp_width = ~~((src_pos.y - cheat.wrld2scrn(ent[add].pos, ent.height).y) * 0.7),
 						esp_height = src_pos.y - src_pos_crouch.y,
 						esp_box_y = src_pos.y - esp_height,
 						// teammate = green, enemy = red, risk + enemy = orange
-						cham_color = ent[cheat.vars.isYou] ? '#FFF' : ent.isEnemy ? ent.isRisk ? '#F70' : '#F00' : '#0F0',
+						cham_color = ent[cheat.vars.isYou] ? '#FFF' : ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0',
 						cham_color_full = parseInt(cham_color.substr(1).split('').map(e => e+e).join(''), 16), // turn #FFF into #FFFFFF
 						chams_enabled = config.esp.status == 'chams' || config.esp.status == 'box_chams' || config.esp.status == 'full';
 					
-					if(ent.objInstances)ent.objInstances.traverse(obj => {
+					if(ent[add].obj)ent[add].obj.traverse(obj => {
 						if(obj.type != 'Mesh')return;
 						
 						obj.material.wireframe = !!config.game.wireframe;
@@ -672,7 +639,7 @@ var fs = require('fs'),
 						var hp_red = hp_perc < 50 ? 255 : Math.round(510 - 5.10 * hp_perc),
 							hp_green = hp_perc < 50 ? Math.round(5.1 * hp_perc) : 255,
 							hp_color = '#' + ('000000' + (hp_red * 65536 + hp_green * 256 + 0 * 1).toString(16)).slice(-6),
-							player_dist = cheat.player.pos.distanceTo(ent.pos),
+							player_dist = cheat.player[add].pos.distanceTo(ent[add].pos),
 							text_x = src_pos_crouch.x + 12 + (esp_width / 2),
 							text_y = src_pos.y - esp_height,
 							yoffset = 0,
@@ -691,8 +658,8 @@ var fs = require('fs'),
 								['#BBB', '['],
 								['#FFF', (ent.weapon.ammo || 'N') + '/' + (ent.weapon.ammo || 'A') ],
 								['#BBB', ']']],
-							[['#BBB', 'Risk: '], [(ent.isRisk ? '#0F0' : '#F00'), ent.isRisk]],
-							[['#BBB', 'Shootable: '], [(ent.canSee ? '#0F0' : '#F00'), ent.canSee]],
+							[['#BBB', 'Risk: '], [(ent[add].risk ? '#0F0' : '#F00'), ent[add].risk]],
+							[['#BBB', 'Shootable: '], [(ent[add].canSee ? '#0F0' : '#F00'), ent[add].canSee]],
 							[['#BBB', '['], ['#FFF', ~~(player_dist / 10) + 'm'], ['#BBB', ']']],
 						].forEach((line, text_index) => {
 							var texts = line.filter(entry => entry),
@@ -772,7 +739,7 @@ var fs = require('fs'),
 				[/aHolder\['style']\['display']/, 'aHolder.style.piss'],
 			]),
 			storage: {
-				skins: [...new Uint8Array(5e3)].map((a, i) => ({ ind: i, cnt: 100 })),
+				skins: [...new Uint8Array(5e2)].map((a, i) => ({ ind: i, cnt: 100 })),
 				get config(){ return config },
 				get player(){ return cheat.player || { weapon: {} } },
 				get target(){ return cheat.target || {} },
@@ -782,14 +749,14 @@ var fs = require('fs'),
 				set __webpack_require__(nv){
 					cheat.__webpack_require__ = nv;
 					
-					cheat.wf(() => cheat.__webpack_require__.c).then(exports => Object.entries({
+					cheat.wf(() => cheat.__webpack_require__.c).then(exports => n.Object.entries({
 						three: ['Box3', 'Vector3', 'Line3'],
 						util: ['getAnglesSSS', 'hexToRGB', 'keyboardMap'],
 						gconfig: [ 'isNode', 'isComp', 'isProd', 'kickTimer'],
 						ws: ['ahNum', 'connected', 'socketId', 'sendQueue', 'trackPacketStats'],
 						overlay: ['render', 'canvas'],
 						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
-					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).map(mod => mod.exports).forEach(exp => (entries.some(entry => n.Reflect.apply(Object.prototype.hasOwnProperty, exp, [ entry ])) && (cheat[label] = exp)))));
+					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).forEach(mod => (!entries.some(entry => !n.Reflect.apply(n.Object.prototype.hasOwnProperty, mod.exports, [ entry ])) && (cheat[label] = mod.exports)))));
 				},
 				set game(nv){
 					cheat.game = nv;
@@ -805,37 +772,33 @@ var fs = require('fs'),
 					cheat.controls = cheat.game ? cheat.game.controls : null;
 					
 					if(cheat.world)cheat.world.scene.onBeforeRender = cheat.process;
-					cheat.render();
-					
-					cheat.event.emit('render');
 					
 					if(cheat.ws && !cheat.ws[cheat.syms.hooked]){
 						cheat.ws[cheat.syms.hooked] = true;
 						
 						cheat.ws.send = uhook(cheat.ws.send, (target, thisArg, [label, ...data]) => {
 							if(label == 'ent' && config.game.skins)cheat.skin_conf = {
-								main: data[2][0],
-								secondary: data[2][1],
-								hat: data[3],
-								body: data[4],
-								knife: data[9],
-								dye: data[14],
-								waist: data[17],
+								weapon: data[0][2],
+								hat: data[0][3],
+								body: data[0][4],
+								knife: data[0][9],
+								dye: data[0][14],
+								waist: data[0][17],
 							};
 							
 							return n.Reflect.apply(target, thisArg, [label, ...data]);
 						});
 						
-						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, thisArg, argArray) => {
-							if(config.game.skins && argArray[0] == 0 && cheat.skin_conf){
+						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, thisArg, [ label, data ]) => {
+							if(config.game.skins && label[0] == 0 && cheat.skin_conf){
 								// sending server player data
 								var player_size = 38,
-									pd = argArray[1][0];
+									pd = data[0];
 								
-								for (;(pd.length % player_size) > 0;)player_size++;
+								while(pd.length % player_size != 0)player_size++;
 								
-								for(var i = 0; i < pd.length; i += player_size)if(pd[i] === cheat.ws.socketId){
-									pd[i + 12] = [cheat.skin_conf.main, cheat.skin_conf.secondary];
+								for(var i = 0; i < pd.length; i += player_size)if(pd[i] == cheat.ws.socketId){
+									pd[i + 12] = cheat.skin_conf.weapon;
 									pd[i + 13] = cheat.skin_conf.hat;
 									pd[i + 14] = cheat.skin_conf.body;
 									pd[i + 19] = cheat.skin_conf.knife;
@@ -844,7 +807,7 @@ var fs = require('fs'),
 								}
 							}
 							
-							return n.Reflect.apply(target, thisArg, argArray);
+							return n.Reflect.apply(target, thisArg, [ label, data ]);
 						});
 						
 						if(cheat.controls && cheat.gconfig && !cheat.gconfig[cheat.syms.hooked]){
@@ -865,21 +828,12 @@ var fs = require('fs'),
 								set: v => orig_target = v,
 							});
 						}
-					}	
-					
-					try{
-						return n.Reflect.apply(frame, window, [(...args) => {
-							try{
-								return n.Reflect.apply(func, window, args);
-							}catch(err){
-								cheat.err(err);
-								return true;
-							}
-						}]);
-					}catch(err){
-						cheat.err(err);
-						return 1;
 					}
+					
+					cheat.render();
+					cheat.event.emit('render');
+					
+					return n.Reflect.apply(frame, window, [ func ]);
 				},
 				get log(){ return cheat.log },
 				get err(){ return cheat.err },
@@ -926,7 +880,7 @@ var fs = require('fs'),
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
 		
 		window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
-		window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
+		window.addEventListener('keyup', event => (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);

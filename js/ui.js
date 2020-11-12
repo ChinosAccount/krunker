@@ -36,7 +36,7 @@ body {
 	color: #eee;
 	flex-direction: column;
 	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-	font: 14px Inconsolata, monospace;
+	font: 13px Inconsolata, monospace;
 	user-select: none;
 }
 
@@ -166,7 +166,7 @@ body {
 .control-textbox {
 	height: 28px;
 	display: block;
-	width: 80%;
+	/*width: 80%;*/
 	font: 14px Inconsolata, monospace;
 	padding: 0px .75rem 0px 0px;
 	text-align: right;
@@ -542,10 +542,10 @@ var main = async () => {
 		jstr = JSON.stringify,
 		super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]]));
 	
-	// add listener on ui and sploit
 	window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
+	
 	window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
-
+	
 	electron.ipcRenderer.on('keydown', (event, data) => {
 		var data = JSON.parse(data),
 			keybind = cheat.keybinds.find(keybind => typeof keybind.keycode == 'string'
@@ -581,7 +581,7 @@ var main = async () => {
 					val: 'full',
 					display: 'Full',
 				}],
-				key: values.config.kb.aim || values.original_config.kb.aim,
+				key: values.config.kb.aim || values.oconfig.kb.aim,
 			},{
 				name: 'Auto bhop',
 				type: 'bool_rot',
@@ -603,7 +603,7 @@ var main = async () => {
 					val: 'autojump',
 					display: 'Auto jump',
 				}],
-				key: values.config.kb.bhop || values.original_config.kb.bhop,
+				key: values.config.kb.bhop || values.oconfig.kb.bhop,
 			},{
 				name: 'ESP mode',
 				type: 'bool_rot',
@@ -625,25 +625,25 @@ var main = async () => {
 					val: 'full',
 					display: 'Full',
 				}],
-				key: values.config.kb.esp || values.original_config.kb.esp,
+				key: values.config.kb.esp || values.oconfig.kb.esp,
 			},{
 				name: 'Tracers',
 				type: 'bool',
 				val_get: _ => values.config.esp.tracers,
 				val_set: v => values.config.esp.tracers = v,
-				key: values.config.kb.tracers || values.original_config.kb.tracers,
+				key: values.config.kb.tracers || values.oconfig.kb.tracers,
 			},{
 				name: 'Nametags',
 				type: 'bool',
 				val_get: _ => values.config.esp.nametags,
 				val_set: v => values.config.esp.nametags = v,
-				key: values.config.kb.nametags || values.original_config.kb.nametags,
+				key: values.config.kb.nametags || values.oconfig.kb.nametags,
 			},{
 				name: 'Overlay',
 				type: 'bool',
 				val_get: _ => values.config.game.overlay,
 				val_set: v => values.config.game.overlay = v,
-				key: values.config.kb.overlay || values.original_config.kb.overlay,
+				key: values.config.kb.overlay || values.oconfig.kb.overlay,
 			}],
 		},{
 			name: 'Game',
@@ -736,12 +736,6 @@ var main = async () => {
 				type: 'bool',
 				val_get: _ => values.config.aim.wallbangs,
 				val_set: v => values.config.aim.wallbangs = v,
-				key: 'unset',
-			},{
-				name: 'Target AIs',
-				type: 'bool',
-				val_get: _ => values.config.aim.target_ais,
-				val_set: v => values.config.aim.target_ais = v,
 				key: 'unset',
 			}],
 		},{
@@ -900,9 +894,37 @@ var main = async () => {
 				val_get: _ => values.config.kb.overlay,
 				val_set: v => (values.config.kb.overlay = v, electron.ipcRenderer.send('reload_cheat')),
 			},{
+				name: 'ASAP toggle',
+				placeholder: 'ASAP toggle keybind',
+				type: 'textbox',
+				max_length: 1,
+				val_get: _ => values.config.kb.disable_settings,
+				val_set: v => (values.config.kb.disable_settings = v, electron.ipcRenderer.send('reload_cheat')),
+			},{
+				name: 'ASAP toggle',
+				type: 'function_inline',
+				val(){
+					values.config.aim.status = values.oconfig.aim.status;
+					values.config.game.bhop = values.oconfig.game.bhop;
+					values.config.esp.status = values.oconfig.esp.status;
+					values.config.esp.tracers = values.oconfig.esp.tracers;
+					values.config.esp.nametags = values.oconfig.esp.nametags;
+					values.config.esp.minimap = values.oconfig.esp.minimap;
+					values.config.esp.walls = values.oconfig.esp.walls;
+					values.config.esp.health_bars = values.oconfig.esp.health_bars;
+					values.config.game.overlay = values.oconfig.game.overlay;
+					values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
+					values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
+					
+					// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
+					
+					electron.ipcRenderer.send('reload_cheat');
+				},
+				key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
+			},{
 				name: 'Reset settings',
 				type: 'function_inline',
-				val: _ => (values.config = Object.assign({}, values.original_config), electron.ipcRenderer.send('reload_cheat')),
+				val: _ => (values.config = Object.assign({}, values.oconfig), electron.ipcRenderer.send('reload_cheat')),
 				key: 'unset',
 			}],
 		}]);

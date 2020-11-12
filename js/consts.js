@@ -19,5 +19,4 @@ module.exports = {
 	app_dir: app_dir,
 	obfs: path.join(js_dir, 'obfs.js'),
 	obfs_exist: fs.existsSync(path.join(js_dir, 'obfs.js')),
-	ad_url: 'https://direct-link.net/175049/sploitdownload',
 }
