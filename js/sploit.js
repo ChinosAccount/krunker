@@ -320,7 +320,7 @@ var fs = require('fs'),
 						cheat.mid = new cheat.three.Vector2(0, 0));
 						var playerMaps = cheat.game.players.list.filter(ent => ent[add].obj && ent[add].enemy && ent.canSee && ent.health).map(ent => ent[add].obj);
 						
-						cheat.raycaster.setFromCamera(cheat.mid, cheese.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
+						cheat.raycaster.setFromCamera(cheat.mid, cheat.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
 					}
 				}
 			},
@@ -739,7 +739,7 @@ var fs = require('fs'),
 				[/aHolder\['style']\['display']/, 'aHolder.style.piss'],
 			]),
 			storage: {
-				skins: [...new Uint8Array(5e2)].map((a, i) => ({ ind: i, cnt: 100 })),
+				skins: [...new Uint8Array(5e2)].map((e, i) => ({ ind: i, cnt: 1 })),
 				get config(){ return config },
 				get player(){ return cheat.player || { weapon: {} } },
 				get target(){ return cheat.target || {} },
@@ -756,6 +756,7 @@ var fs = require('fs'),
 						ws: ['ahNum', 'connected', 'socketId', 'sendQueue', 'trackPacketStats'],
 						overlay: ['render', 'canvas'],
 						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
+						shop: ['purchases', 'previews', 'premium', 'events'],
 					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).forEach(mod => (!entries.some(entry => !n.Reflect.apply(n.Object.prototype.hasOwnProperty, mod.exports, [ entry ])) && (cheat[label] = mod.exports)))));
 				},
 				set game(nv){
@@ -765,7 +766,7 @@ var fs = require('fs'),
 					cheat.world = nv;
 				},
 				skin(player){
-					return config.game.skins ? cheat.storage.skins : player.skins;
+					return config.game.skins ? Object.assign(cheat.storage.skins, player.skins) : player.skins;
 				},
 				frame(frame, func){
 					cheat.player = cheat.game ? cheat.game.players.list.find(player => player[cheat.vars.isYou]) : null;
@@ -795,7 +796,7 @@ var fs = require('fs'),
 								var player_size = 38,
 									pd = data[0];
 								
-								while(pd.length % player_size != 0)player_size++;
+								for(;pd.length % player_size != 0;)player_size++;
 								
 								for(var i = 0; i < pd.length; i += player_size)if(pd[i] == cheat.ws.socketId){
 									pd[i + 12] = cheat.skin_conf.weapon;
