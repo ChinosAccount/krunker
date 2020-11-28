@@ -36,6 +36,11 @@ var fs = require('fs'),
 				
 				// console.log(event, nevent);
 				
+				if(conf.pass_inputs){
+					if(wins.sploit)wins.sploit.webContents.send(nevent.type, nevent);
+					if(wins.game)wins.game.webContents.send(nevent.type, nevent);
+				}
+				
 				if(keybind)keybind.press(nevent);
 			};
 		
@@ -66,7 +71,7 @@ var fs = require('fs'),
 		version: electron.app.getVersion(),
 		src_dir: fs.existsSync(path.resolve(__dirname, 'main.js')) ? __dirname : path.join(__dirname, 'res'),
 		consts: ss_require('./consts.js'),
-		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.80 Safari/537.36 Edg/86.0.622.43',
+		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
 		folders: {
 			sploit: sploit_folder,
 			css: path.join(sploit_folder, 'css'),
@@ -267,7 +272,7 @@ var fs = require('fs'),
 				// update check
 				fetcht(5000, ['https://cli.sys32.dev/client/updates.json?ts=' + Date.now()]).then(res => res.json()).then(async updates => {
 					if(!updates.latest.working)return splash_countdown(wins.splash, ['Shitsploit is currently not functional..', 'Check <a href="https://skidlamer.github.io/">here</a> for more info'], 10).then(() => electron.app.quit());
-					else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, ''))){ // not the latest major version
+					else if(+values.version.replace(/\D/g, '') < +updates.latest.major.replace(/\D/g, '')){ // not the latest major version
 						var installer_url = updates.latest.installers[os.type()];
 						
 						// if no setup is available
@@ -306,7 +311,7 @@ var fs = require('fs'),
 						} }
 						
 						return;
-					} else if(1*(values.version.replace(/\D/g, '')) < 1*(updates.latest.major.replace(/\D/g, '')))init_delay = 3000, note = 'Consider downloading the latest client patch'
+					} else if(+values.version.replace(/\D/g, '') < +updates.latest.major.replace(/\D/g, ''))init_delay = 3000, note = 'Consider downloading the latest client patch'
 					else note = 'Client is up-to-date';
 					
 					wins.splash.message(note, 'Loading...');
@@ -324,6 +329,7 @@ var fs = require('fs'),
 				backgroundColor: '#000',
 				thickFrame: true,
 				webPreferences: { preload: path.join(values.consts.app_dir, 'preload.js') },
+				pass_inputs: true,
 			}, [{
 				type: 'keydown',
 				key: ['Escape'],
@@ -427,6 +433,7 @@ var fs = require('fs'),
 				parent: os.type != 'Linux' ? wins.game : void'',
 				alwaysOnTop: os.type == 'Linux' ? true : void'',
 				title: 'Shitsploit UI',
+				pass_inputs: true,
 			});
 			
 			wins.sploit.setMenu(null);

@@ -538,17 +538,10 @@ var main = async () => {
 			
 			add_ele('div', main_border, { className: 'bar', innerHTML: footer });
 			add_ele('div', titlebar, { className: 'ver', innerHTML: 'v' + values.version });
-		},
-		jstr = JSON.stringify,
-		super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]]));
-	
-	window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
-	
-	window.addEventListener('keyup', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'ui' })));
+		};
 	
 	electron.ipcRenderer.on('keydown', (event, data) => {
-		var data = JSON.parse(data),
-			keybind = cheat.keybinds.find(keybind => typeof keybind.keycode == 'string'
+		var keybind = cheat.keybinds.find(keybind => typeof keybind.keycode == 'string'
 				? keybind.keycode == data.code || keybind.keycode.replace('Digit', 'Numpad') == data.code
 				: keybind.keycode.some(keycode => keycode == data.code || keycode.replace('Digit', 'Numpad') == data.code));
 		

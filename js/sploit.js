@@ -18,9 +18,9 @@ var fs = require('fs'),
 			}, timeout);
 		}),
 	},
-	n = { CanvasRenderingContext2D_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(CanvasRenderingContext2D.prototype)), Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)) },
+	n = { CanvasRenderingContext2D_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(CanvasRenderingContext2D.prototype)), Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)), Proxy: Proxy.bind() },
 	uhook = (orig_func, handler) => {
-		var func = Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, Object.getOwnPropertyDescriptors(orig_func));
+		var func = n.Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, n.Object.getOwnPropertyDescriptors(orig_func));
 		
 		n.Reflect.defineProperty(func, 'length', { value: orig_func.length, configurable: true, enumerable: false, writable: false });
 		n.Reflect.defineProperty(func, 'name', { value: orig_func.name, configurable: true, enumerable: false, writable: false });
@@ -43,7 +43,7 @@ var fs = require('fs'),
 		
 		var add = Symbol();
 		
-		cheat = Object.assign(cheat, {
+		cheat = n.Object.assign(cheat, {
 			syms: new Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
@@ -51,14 +51,14 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
-			rnds: new Proxy({}, {
+			rnds: new n.Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = [...Array(16)].map(() => Math.random().toString(36)[2]).join('').replace(/(\d|\s)/, 'V').toLowerCase().substr(0, 6);
 					
 					return target[prop];
 				}
 			}),
-			objs: new Proxy({}, {
+			objs: new n.Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = cheat.object_list[~~(Math.random() * cheat.object_list.length)];
 					
@@ -66,7 +66,7 @@ var fs = require('fs'),
 				}
 			}),
 			event: new (require('events'))(),
-			object_list: Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
+			object_list: n.Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
 			vars: {},
 			materials_esp: new Proxy({}, {
@@ -95,7 +95,7 @@ var fs = require('fs'),
 			wrld2scrn(pos, aY = 0){
 				if(!cheat.cas)return { x: 0, y: 0 };
 				
-				var pos = { ...pos, y: pos.y + aY };
+				var pos = Object.assign({}, pos, { y: pos.y + aY });
 				
 				cheat.world.camera.updateMatrix();
 				cheat.world.camera.updateMatrixWorld();
@@ -191,12 +191,10 @@ var fs = require('fs'),
 					else if(cheat.controls && (!cheat.player || !cheat.player[add].active) && /click to play/gi.test(intxt))cheat.controls.toggle(true);
 				}
 				
-				document.querySelectorAll('#streamContainer, #aHolder, #endAHolderL, #endAHolderR').forEach(node => node.style.display = 'none');
-				
-				document.querySelectorAll('.streamItem').forEach(node => node.children[0].src = '');
+				document.querySelectorAll('.streamItem *').forEach(node => node.src = '');
 			},
 			find_target(){
-				var targets = cheat.game.players.list.filter(ent => !ent[cheat.vars.isYou] && ent[add] && ent[add].canSee && ent[add].active && ent[add].enemy && (config.aim.frustrum_check ? ent[add].frustum : true)),
+				var targets = cheat.game.players.list.filter(ent => ent[add] && !ent[add].is_you && ent[add].canSee && ent[add].active && ent[add].enemy && (config.aim.frustrum_check ? ent[add].frustum : true)),
 					target;
 				
 				switch(config.aim.target_sorting){
@@ -238,8 +236,16 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] && config.aim.auto_reload)data[keys.reload] = 1;
 				
+				if(config.aim.triggerbot){
+					cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
+					cheat.mid = new cheat.three.Vector2(0, 0));
+					var pm = cheat.game.players.list.filter(ent => ent[add] && ent[add].obj && ent[add].enemy && ent.canSee && ent.health).map(ent => ent[add].obj);
+					
+					cheat.raycaster.setFromCamera(cheat.mid, cheat.world.camera), cheat.raycaster.intersectObjects(pm, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
+				}
+				
 				// aiming
-				if(cheat.target && cheat.player.health && !cheat.player[cheat.vars.reloadTimer]){
+				if(cheat.target && cheat.player.health && !data[keys.reload]){
 					var yVal = target.y
 							+ (target[cheat.syms.isAI] ? -(target.dat.mSize / 2) : (target.jumpBobY * cheat.gconfig.jumpVel) + 1 - target[add].crouch * 3),
 						yDire = cheat.getDir(cheat.player[add].pos.z, cheat.player[add].pos.x, target.z, target.x),
@@ -260,7 +266,28 @@ var fs = require('fs'),
 						)
 					)(cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] || cheat.player.weapon.ammo == null) ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
-					!config.aim.smooth ? (_ => { switch(config.aim.status){
+					if(config.aim.smooth)switch(config.aim.status){
+						case'assist':
+							
+							if(cheat.controls[cheat.vars.mouseDownR] || cheat.controls.keys[cheat.controls.binds.aimKey.val])cheat.moving_camera = {
+								xD: rot.x,
+								yD: rot.y,
+							}
+							
+							break
+						case'full':
+						case'silent':
+							
+							if(cheat.player.weapon.nAuto && cheat.player[add].did_shoot)data[keys.shoot] = data[keys.scope] = 0;
+							else data[keys.scope] = 1;
+							
+							if(data[keys.shoot] || cheat.player.weapon.melee)cheat.moving_camera = {
+								xD: rot.x,
+								yD: rot.y,
+							}
+							
+							break
+					}else switch(config.aim.status){
 						case'silent':
 							// dont shoot if weapon is on shoot cooldown
 							if(cheat.player.weapon.nAuto && cheat.player[cheat.vars.didShoot])data[keys.shoot] = data[keys.scope] = 0;
@@ -268,15 +295,19 @@ var fs = require('fs'),
 							
 							// wait until we are shooting to look at enemy
 							if(!data[keys.reload] && (data[keys.shoot] || cheat.player.weapon.melee)){
-								data[keys.xdir] = rot.x * 1000
-								data[keys.ydir] = rot.y * 1000
+								data[keys.xdir] = rot.x * 1000;
+								data[keys.ydir] = rot.y * 1000;
 							}
 							
 							break
 						case'assist':
+							
 							if(cheat.controls[cheat.vars.mouseDownR] || cheat.controls.keys[cheat.controls.binds.aimKey.val]){
 								cheat.controls[cheat.vars.pchObjc].rotation.x = rot.x
 								cheat.controls.object.rotation.y = rot.y
+								
+								data[keys.xdir] = rot.x * 1000;
+								data[keys.ydir] = rot.y * 1000;
 							}
 							
 							break
@@ -292,35 +323,6 @@ var fs = require('fs'),
 							}
 							
 							break
-					} })() : (_ => { switch(config.aim.status){
-						case'assist':
-							
-							if(cheat.controls[cheat.vars.mouseDownR] || cheat.controls.keys[cheat.controls.binds.aimKey.val])cheat.moving_camera = {
-								xD: rot.x,
-								yD: rot.y,
-							}
-							
-							break
-						case'full':
-						case'silent':
-							
-							if(cheat.player.weapon.nAuto && cheat.player[cheat.vars.didShoot])data[keys.shoot] = data[keys.scope] = 0;
-							else data[keys.scope] = 1;
-							
-							if(data[keys.shoot] || cheat.player.weapon.melee)cheat.moving_camera = {
-								xD: rot.x,
-								yD: rot.y,
-							}
-							
-							break
-					} })();
-					
-					if(config.aim.triggerbot){
-						cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
-						cheat.mid = new cheat.three.Vector2(0, 0));
-						var playerMaps = cheat.game.players.list.filter(ent => ent[add].obj && ent[add].enemy && ent.canSee && ent.health).map(ent => ent[add].obj);
-						
-						cheat.raycaster.setFromCamera(cheat.mid, cheat.world.camera), cheat.raycaster.intersectObjects(playerMaps, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
 					}
 				}
 			},
@@ -364,13 +366,17 @@ var fs = require('fs'),
 							applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
 						},
 						get crouch(){ return ent[cheat.vars.crouchVal] },
+						get obj(){ return ent?.lowerBody?.parent?.parent },
+						// [cheat.vars.objInstances] },
+						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
-						get canSee(){ return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+						get canSee(){ return ent[add].active && cheat.canSee(cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
 						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos) },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
-						get obj(){ return ent[cheat.vars.objInstances] },
+						get did_shoot(){ return ent[cheat.vars.didShoot] },
 						risk: ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30,
+						is_you: ent[cheat.vars.isYou],
 					}
 					
 					if(!ent[add].active)return;
@@ -492,7 +498,7 @@ var fs = require('fs'),
 					cheat.game.players.list.filter(ent => ent[add] && ent[add].active).forEach(ent => {
 						var wp = cm.dims.min.x_abs + ent[add].pos.x,
 							hp = cm.dims.min.z_abs + ent[add].pos.z,
-							cham_color = ent[cheat.vars.isYou] ? '#FFF' : (ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0');
+							cham_color = ent[add].is_you ? '#FFF' : (ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0');
 						
 						cheat.ctx.fillStyle = cheat.ctx.strokeStyle = cham_color;
 						
@@ -500,7 +506,7 @@ var fs = require('fs'),
 						cheat.ctr('arc', [ cm.mm.offset.x + (wp / cm.mm.scale), cm.mm.offset.y + (hp / cm.mm.scale), 3, 0, 2 * Math.PI ]);
 						cheat.ctr('fill');
 						
-						if(ent[cheat.vars.isYou]){
+						if(ent[add].is_you){
 							cheat.ctr('beginPath');
 							cheat.ctr('moveTo', [ cm.mm.offset.x + (wp / cm.mm.scale), cm.mm.offset.y + (hp / cm.mm.scale) ]);
 							
@@ -570,14 +576,14 @@ var fs = require('fs'),
 					item.material.opacity = config.esp.walls ? item.orig_mat.opacity * config.esp.wall_opacity : item.orig_mat.opacity;
 				});
 				
-				cheat.game.players.list.filter(ent => ent[add] && ent[add].active && ent[add].frustum && !ent[cheat.vars.isYou]).forEach(ent => {
+				cheat.game.players.list.filter(ent => ent[add] && ent[add].active && ent[add].frustum && !ent[add].is_you).forEach(ent => {
 					var src_pos = cheat.wrld2scrn(ent[add].pos),
 						src_pos_crouch = cheat.wrld2scrn(ent[add].pos, ent.height - ent[add].crouch * 3),
 						esp_width = ~~((src_pos.y - cheat.wrld2scrn(ent[add].pos, ent.height).y) * 0.7),
 						esp_height = src_pos.y - src_pos_crouch.y,
 						esp_box_y = src_pos.y - esp_height,
 						// teammate = green, enemy = red, risk + enemy = orange
-						cham_color = ent[cheat.vars.isYou] ? '#FFF' : ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0',
+						cham_color = ent[add].is_you ? '#FFF' : ent[add].enemy ? ent[add].risk ? '#F70' : '#F00' : '#0F0',
 						cham_color_full = parseInt(cham_color.substr(1).split('').map(e => e+e).join(''), 16), // turn #FFF into #FFFFFF
 						chams_enabled = config.esp.status == 'chams' || config.esp.status == 'box_chams' || config.esp.status == 'full';
 					
@@ -586,7 +592,7 @@ var fs = require('fs'),
 						
 						obj.material.wireframe = !!config.game.wireframe;
 						
-						if(ent[cheat.vars.isYou])return;
+						if(ent[add].is_you)return;
 						
 						if(chams_enabled && obj.material.type != 'MeshBasicMaterial'){ // set material
 							if(!obj.orig_mat)obj.orig_mat = Object.assign(Object.create(Object.getPrototypeOf(obj.material)), obj.material);
@@ -606,7 +612,7 @@ var fs = require('fs'),
 					}
 					
 					// health bar, red - yellow - green gradient
-					var hp_perc = (ent.health / ent[cheat.vars.maxHealth]) * 100;
+					var hp_perc = (ent.health / ent[add].max_health) * 100;
 					
 					if(config.esp.status == 'full' || config.esp.health_bars){
 						var hp_grad = cheat.ctr('createLinearGradient', [0, src_pos.y - esp_height, 0, src_pos.y - esp_height + esp_height]),
@@ -652,7 +658,7 @@ var fs = require('fs'),
 						
 						[
 							[['#FB8', ent.alias], ent.clan ? ['#FFF', ' [' + ent.clan + ']'] : null],
-								[[hp_color, ent.health + '/' + ent[cheat.vars.maxHealth] + ' HP']],
+								[[hp_color, ent.health + '/' + ent[add].max_health + ' HP']],
 							// player weapon & ammo
 							[['#FFF', ent.weapon.name ],
 								['#BBB', '['],
@@ -704,18 +710,18 @@ var fs = require('fs'),
 				['weaponIndex', /\['weaponConfig']\[\w+]\['secondary']&&\(\w+\['(\w+)']==\w+/, 1],
 				['maxHealth', /\['regenDelay'],this\['(\w+)']=\w+\['mode'\]&&\w+\['mode']\['\1']/, 1],
 				['yVel', /this\['y']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedY']/, 1],
-				['reloadTimer', /this\['(\w+)']-=\w+,\w+\['reloadUIAnim']/, 1],
 				['mouseDownR', /this\['(\w+)']=0x0,this\['keys']=/, 1], 
-				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
-				// ['noclip', /Noclip\\x20-\\x20'\+\(\w+\['(\w+)']\?'Enabled/, 1],
+				['recoilAnimY', /this\['reward']=0x0,this\['\w+']=0x0,this\['(\w+)']=0x0,this\['\w+']=0x0,this\['\w+']=0x1,this\['slideLegV']/, 1],
 				/*
+				['reloadTimer', /this\['(\w+)']-=\w+,\w+\['reloadUIAnim']/, 1],
+				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
+				['noclip', /Noclip\\x20-\\x20'\+\(\w+\['(\w+)']\?'Enabled/, 1],
 				['nAuto', /!this\['doingInter']\){var \w+=this\['\w+']\|\|!this\['weapon']\['(\w+)']&&a0\[0x5];/, 1],
 				['xVel', /this\['x']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedX']/, 1],
-				['zVel', /this\['z']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedZ']/, 1],*/
+				['zVel', /this\['z']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedZ']/, 1],
 				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
 				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
-				
-				['camLookAt', /this\['(\w+')\]=function\(\w+,\w+,\w+\){var \w+=\w+\['getXDire']\(this\['object']\['position']\['x']/, 1],
+				*/
 			],
 			patches: new Map([
 				// wallbangs
@@ -752,8 +758,8 @@ var fs = require('fs'),
 					cheat.wf(() => cheat.__webpack_require__.c).then(exports => n.Object.entries({
 						three: ['Box3', 'Vector3', 'Line3'],
 						util: ['getAnglesSSS', 'hexToRGB', 'keyboardMap'],
-						gconfig: [ 'isNode', 'isComp', 'isProd', 'kickTimer'],
-						ws: ['ahNum', 'connected', 'socketId', 'sendQueue', 'trackPacketStats'],
+						gconfig: [ 'isNode', 'isComp', 'isProd' ],
+						ws: ['ahNum', 'connected', 'socketId', 'send', 'trackPacketStats'],
 						overlay: ['render', 'canvas'],
 						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
 						shop: ['purchases', 'previews', 'premium', 'events'],
@@ -810,31 +816,36 @@ var fs = require('fs'),
 							
 							return n.Reflect.apply(target, thisArg, [ label, data ]);
 						});
+					}
+					
+					if(cheat.controls && cheat.gconfig && !cheat.gconfig[cheat.syms.hooked]){
+						cheat.gconfig[cheat.syms.hooked] = true;
 						
-						if(cheat.controls && cheat.gconfig && !cheat.gconfig[cheat.syms.hooked]){
-							cheat.gconfig[cheat.syms.hooked] = true;
-							
-							var orig_camChaseTrn = cheat.gconfig.camChaseTrn,
-								orig_target = cheat.controls.target;
-							
-							// 0.025
-							
-							Reflect.defineProperty(cheat.gconfig, 'camChaseTrn', {
-								get: _ => cheat.moving_camera ? ((50 - config.aim.smoothn) / 1000) : orig_camChaseTrn,
-								set: v => orig_camChaseTrn = v,
-							});
-							
-							Reflect.defineProperty(cheat.controls, 'target', {
-								get: _ => cheat.moving_camera ? cheat.moving_camera : orig_target,
-								set: v => orig_target = v,
-							});
-						}
+						var orig_camChaseTrn = cheat.gconfig.camChaseTrn,
+							orig_target = cheat.controls.target;
+						
+						// 0.025
+						
+						n.Reflect.defineProperty(cheat.gconfig, 'camChaseTrn', {
+							get: _ => cheat.moving_camera ? ((50 - config.aim.smoothn) / 1000) : orig_camChaseTrn,
+							set: v => orig_camChaseTrn = v,
+						});
+						
+						n.Reflect.defineProperty(cheat.controls, 'target', {
+							get: _ => cheat.moving_camera ? cheat.moving_camera : orig_target,
+							set: v => orig_target = v,
+						});
 					}
 					
 					cheat.render();
 					cheat.event.emit('render');
 					
 					return n.Reflect.apply(frame, window, [ func ]);
+				},
+				proxy: class {
+					constructor(input){
+						return input;
+					}
 				},
 				get log(){ return cheat.log },
 				get err(){ return cheat.err },
@@ -845,7 +856,7 @@ var fs = require('fs'),
 							cheat.wf(() => cheat.game).then(game => {
 								cheat.event.game = game;
 								cheat.event.players = cheat.game.players.list;
-								cheat.event.emit('game-load', game)
+								cheat.event.emit('game-load', game);
 							});
 							
 							cheat.log('injected to game');
@@ -858,15 +869,19 @@ var fs = require('fs'),
 				},
 			},
 			inputs: [],
-		});
+		}); 
 		
 		// pass storage object to game
-		cheat.patches.set(/^/, '(ssd => { return ');
-		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '())');
+		cheat.patches.set(/^/, '((ssd, Proxy) => { return ');
+		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '(), ' + cheat.objs.storage + '.' + cheat.rnds.storage + '().proxy,)');
 		
 		setInterval(cheat.process_interval, 1000);
 		
 		cheat.storage.procInputs = cheat.procInputs;
+		
+		electron.ipcRenderer.on('keydown', (event, data) => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[data.code] = true));
+		electron.ipcRenderer.on('keyup', (event, data) => cheat.inputs[data.code] = false);
+		
 		
 		electron.ipcRenderer.on('esc', () => {
 			document.exitPointerLock();
@@ -879,9 +894,6 @@ var fs = require('fs'),
 		window.cheese = cheat;
 		
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
-		
-		window.addEventListener('keydown', event => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[event.code] = true, electron.ipcRenderer.send('keydown', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
-		window.addEventListener('keyup', event => (cheat.inputs[event.code] = false, electron.ipcRenderer.send('keyup', jstr({ ...super_serialize(event, KeyboardEvent), origin: 'game' }))));
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
@@ -921,8 +933,8 @@ var fs = require('fs'),
 			}).load().then(font => document.fonts.add(font));
 			
 			cheat.wf(() => document.querySelector('#subLogoButtons')).then(() => {
-				// add button
-				document.querySelectorAll('.menuItemIcon').forEach(el => el.style.height = '60px');
+				// safer to use queryselectorall incase the element does not exist
+				document.querySelectorAll('.menuItemIcon').forEach(node => node.style.height = '60px');
 				document.querySelectorAll('.downloadClient, #merchImg').forEach(node => node.remove());
 				
 				var button = document.querySelector('#subLogoButtons').appendChild(document.createElement('div'));
@@ -943,9 +955,9 @@ var fs = require('fs'),
 					log: sanitize(util.format(...args)),
 					color: '#F33',
 				}),
-				sploit_safe = new Proxy({}, {
+				sploit_safe = new n.Proxy({}, {
 					get: (obj, prop) => { try{
-						if(Object.getOwnPropertyNames(Object.prototype).some(blocked => prop == blocked))return void'';
+						if(n.Object.getOwnPropertyNames(n.Object.prototype).some(blocked => prop == blocked))return void'';
 						var ret = n.Reflect.get(cheat.event, prop),
 							ret1 = ret;
 						
@@ -966,16 +978,22 @@ var fs = require('fs'),
 			}catch(err){ err_func(err) }});
 			
 			// load css 
-			var css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");').join('') ], { type: 'text/css' }));
+			var content = fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");') + `
+#clientExit {
+	display: flex !important;
+}
+
+#onetrust-consent-sdk, #streamContainer, #aHolder, #endAHolderL, #endAHolderR {
+	display: none !important;
+}`,
+				css_tag = document.head.appendChild(document.createElement('link')),
+				css_url = window.URL.createObjectURL(new window.Blob([ content ], { type: 'text/css' }));
 			
 			css_tag.href = css_url;
 			css_tag.rel = 'stylesheet';	
 			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 		}catch(err){ console.trace(err) } });
 	},
-	jstr = JSON.stringify,
-	super_serialize = (ob, proto) => Object.fromEntries(Object.keys(proto.prototype).map(key => [key, ob[key]])),
 	inject = () => {
 		window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, thisArg, [node]) => {
 			var ret = n.Reflect.apply(target, thisArg, [node]);
