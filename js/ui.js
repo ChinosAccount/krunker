@@ -663,12 +663,6 @@ var main = async () => {
 				val_get: _ => values.config.game.thirdperson,
 				val_set: v => values.config.game.thirdperson = v,
 				key: 'unset',
-			},{
-				name: 'No zoom',
-				type: 'bool',
-				val_get: _ => values.config.game.no_zoom,
-				val_set: v => values.config.game.no_zoom = v,
-				key: 'unset',
 			}],
 		},{
 			name: 'Aim',

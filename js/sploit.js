@@ -1,8 +1,10 @@
 'use strict';
 var fs = require('fs'),
 	path = require('path'),
+	events = require('events'),
 	electron = require('electron'),
 	cheat = {
+		// wait for promise
 		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 			var interval = setInterval(() => {
 				var checked = check();
@@ -18,7 +20,9 @@ var fs = require('fs'),
 			}, timeout);
 		}),
 	},
+	// natives
 	n = { CanvasRenderingContext2D_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(CanvasRenderingContext2D.prototype)), Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)), Proxy: Proxy.bind() },
+	// experimental hook
 	uhook = (orig_func, handler) => {
 		var func = n.Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, n.Object.getOwnPropertyDescriptors(orig_func));
 		
@@ -41,6 +45,7 @@ var fs = require('fs'),
 			config = values.config;
 		});
 		
+		// addon for game objects
 		var add = Symbol();
 		
 		cheat = n.Object.assign(cheat, {
@@ -65,7 +70,7 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
-			event: new (require('events'))(),
+			event: new events(),
 			object_list: n.Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
 			vars: {},
@@ -152,12 +157,8 @@ var fs = require('fs'),
 						FRA: 'de-fra',
 						SIN: 'sgp',
 						NY: 'us-nj',
-					})[window.location.href.split('=')[1].split(':')[0]],
-					data = await fetch('https://matchmaker.krunker.io/game-list?hostname=' + window.location.host, {
-						headers: {
-							'user-agent': navigator.userAgent,
-						}
-					}),
+					})[('' + window.location.search).match(/\?game=(\w+)/)[1]],
+					data = await fetch('https://matchmaker.krunker.io/game-list?hostname=' + window.location.host, { headers: { 'user-agent': navigator.userAgent } }),
 					body = await data.text();
 				
 				try{
@@ -375,20 +376,20 @@ var fs = require('fs'),
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
 						risk: ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30,
 						is_you: ent[cheat.vars.isYou],
+						get inview(){
+							return ent[cheat.vars.inView];
+						},
+						set inview(v){
+							ent[cheat.vars.inView] = v;
+						},
 					}
 					
 					if(!ent[add].active)return;
 					
 					// we are at fastest tick so we can do this
 					if(ent[add].obj)ent[add].obj.visible = true;
-					ent[cheat.vars.inView] = cheat.hide_nametags ? false : config.esp.nametags ? true : ent[cheat.vars.inView];
 					
-					if(ent.weapon && !ent.weapon[cheat.syms.org_zoom])ent.weapon[cheat.syms.org_zoom] = ent.weapon.zoom;
-					
-					if(ent.weapon && !ent.weapon[cheat.syms.zoom])ent.weapon[cheat.syms.zoom] = n.Reflect.defineProperty(ent.weapon, 'zoom', {
-						get: _ => config.game.no_zoom ? 1 : ent.weapon[cheat.syms.org_zoom],
-						set: n => ent.weapon._zoom = n,
-					});
+					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? ent[add].frustum : ent[add].inview;
 				});
 				
 				cheat.event.emit('process');
@@ -397,11 +398,9 @@ var fs = require('fs'),
 				if(cheat.player){
 					if(cheat.player.prev_health == null)cheat.player.prev_health = 0;
 					
-					if(cheat.player.prev_health != cheat.player[cheat.vars.maxHealth] && cheat.player.health == cheat.player[cheat.vars.maxHealth]){
-						cheat.event.emit('client-spawn', cheat.player);
-					}else if(cheat.player.prev_health && !cheat.player.health){
-						cheat.event.emit('client-died');
-					}
+					if(cheat.player.prev_health != cheat.player[cheat.vars.maxHealth] && cheat.player.health == cheat.player[cheat.vars.maxHealth])cheat.event.emit('client-spawn', cheat.player);
+					else if(cheat.player.prev_health && !cheat.player.health)cheat.event.emit('client-died');
+					
 					
 					cheat.player.prev_health = cheat.player.health;
 				}
@@ -777,7 +776,7 @@ var fs = require('fs'),
 					if(cheat.ws && !cheat.ws[cheat.syms.hooked]){
 						cheat.ws[cheat.syms.hooked] = true;
 						
-						cheat.ws.send = uhook(cheat.ws.send, (target, thisArg, [label, ...data]) => {
+						cheat.ws.send = uhook(cheat.ws.send, (target, that, [label, ...data]) => {
 							if(label == 'ent' && config.game.skins)cheat.skin_conf = {
 								weapon: data[0][2],
 								hat: data[0][3],
@@ -787,10 +786,10 @@ var fs = require('fs'),
 								waist: data[0][17],
 							};
 							
-							return n.Reflect.apply(target, thisArg, [label, ...data]);
+							return n.Reflect.apply(target, that, [label, ...data]);
 						});
 						
-						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, thisArg, [ label, data ]) => {
+						cheat.ws._dispatchEvent = uhook(cheat.ws._dispatchEvent, (target, that, [ label, data ]) => {
 							if(config.game.skins && label[0] == 0 && cheat.skin_conf){
 								// sending server player data
 								var player_size = 38,
@@ -808,7 +807,7 @@ var fs = require('fs'),
 								}
 							}
 							
-							return n.Reflect.apply(target, thisArg, [ label, data ]);
+							return n.Reflect.apply(target, that, [ label, data ]);
 						});
 					}
 					
@@ -956,7 +955,7 @@ var fs = require('fs'),
 						var ret = n.Reflect.get(cheat.event, prop),
 							ret1 = ret;
 						
-						if(ret && ret.constructor == Function)ret = new Proxy(()=>{}, { apply: (target, thisArg, argArray) => n.Reflect.apply(ret1, thisArg, argArray) });
+						if(ret && ret.constructor == Function)ret = new Proxy(()=>{}, { apply: (target, that, args) => n.Reflect.apply(ret1, that, args) });
 						
 						return ret;
 					}catch(err){ err_func(err) }},
@@ -980,7 +979,7 @@ var fs = require('fs'),
 
 #onetrust-consent-sdk, #streamContainer, #aHolder, #endAHolderL, #endAHolderR {
 	display: none !important;
-}`,
+}`, // hide shitty consent sdk and krunker propaganda and show client exit
 				css_tag = document.head.appendChild(document.createElement('link')),
 				css_url = window.URL.createObjectURL(new window.Blob([ content ], { type: 'text/css' }));
 			
@@ -989,46 +988,51 @@ var fs = require('fs'),
 			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 		}catch(err){ console.trace(err) } });
 	},
-	inject = () => {
-		window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, thisArg, [node]) => {
-			var ret = n.Reflect.apply(target, thisArg, [node]);
-			
-			if(node.nodeName == 'IFRAME' && node.style.display == 'none'){
-				node.contentWindow.WebAssembly = window.WebAssembly;
-				node.contentWindow.Response.prototype.arrayBuffer = uhook(node.contentWindow.Response.prototype.arrayBuffer, (target_buf, thisArg, argArray) => n.Reflect.apply(target_buf, thisArg, argArray).then(ret => {
-					var arr = new Uint8Array(ret),
-						xor_key = arr[0]  ^ '!'.charCodeAt(),
-						code = Array.from(arr).map(chr => String.fromCharCode(chr ^ xor_key)).join('');
+	inject = () => window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, that, [ node ]) => {
+		var ret = n.Reflect.apply(target, that, [node]);
+		
+		if(node.nodeName == 'IFRAME' && node.style.display == 'none'){
+			/*
+			// webassembly ran in an iframe while electron uses
+			// a preload throws an error in later versions
+			*/
+			node.contentWindow.WebAssembly = window.WebAssembly;
+			node.contentWindow.Response.prototype.arrayBuffer = uhook(node.contentWindow.Response.prototype.arrayBuffer, (target_buf, that, args) => n.Reflect.apply(target_buf, that, args).then(ret => {
+				var arr = new Uint8Array(ret),
+					// first character of game is !
+					xor_key = arr[0] ^ '!'.charCodeAt(),
+					code = Array.from(arr).map(chr => String.fromCharCode(chr ^ xor_key)).join('');
+				
+				// if another piece of code is fetched
+				if(!code.includes('isProd'))return ret;
+				
+				// restore functions
+				node.contentWindow.Response.prototype.arrayBuffer = target_buf;
+				window.HTMLBodyElement.prototype.appendChild = target;
+				
+				// find stuff and patch stuff
+				cheat.patches.forEach((replacement, regex) => code = code.replace(regex, replacement));
+				cheat.find_vars.forEach(([ label, regex, pos ]) => {
+					var match = code.match(regex);
 					
-					if(!code.includes('isProd'))return ret;
-					
-					// restore functions
-					node.contentWindow.Response.prototype.arrayBuffer = target_buf;
-					window.HTMLBodyElement.prototype.appendChild = target;
-					
-					// find stuff and patch stuff
-					cheat.patches.forEach((replacement, regex) => code = code.replace(regex, replacement));
-					cheat.find_vars.forEach(([ label, regex, pos ]) => {
-						var match = code.match(regex);
-						
-						if(match && match[pos])cheat.vars[label] = match[pos];
-						else cheat.vars_not_found.push(label), cheat.vars[label] = label;
-					});
-					
-					cheat.event.vars = Object.assign({}, cheat.vars);
-					
-					if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));
-					
-					window[cheat.objs.storage][cheat.rnds.storage] = uhook(window[cheat.objs.storage], () => cheat.storage);
-					
-					return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
-				}));
-			}
-			
-			return ret;
-		});
-	};
+					if(match && match[pos])cheat.vars[label] = match[pos];
+					else cheat.vars_not_found.push(label), cheat.vars[label] = label;
+				});
+				
+				cheat.event.vars = Object.assign({}, cheat.vars);
+				
+				if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));
+				
+				window[cheat.objs.storage][cheat.rnds.storage] = uhook(window[cheat.objs.storage], () => cheat.storage);
+				
+				return new Promise((resolve, reject) => resolve(Uint8Array.from([...code].map(char => char.charCodeAt() ^ xor_key))));
+			}));
+		}
+		
+		return ret;
+	});
 
+// sploit module is called with (three), only exposed part is threejs
 module.exports = three => cheat.three = three;
 
 init();

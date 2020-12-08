@@ -57,11 +57,11 @@ module.exports = {
 			// load custom options if we obfuscate
 			try{
 				if(options.obio){
-					var modules = [ './consts.js', './media.js', './v8-compile-cache.js', './node-fetch.js' ],
-						requires_string = '{' + modules.map(file => '"' + file + '":' + mod.wrap(fs.readFileSync(path.join(__dirname, file), 'utf8')).replace(/.$/, '')).join(',') + '}';
+					var modules = [ ['consts.js', 'consts'], ['media.js', 'media'], ['v8-compile-cache.js', 'compile-cache'], ['node-fetch.js', 'fetch'] ],
+						wrap = str => JSON.stringify([ str ]).slice(1, -1);
 					
 					fs.writeFileSync(file_obfus, jsob.obfuscate(
-						'var mod = require("module"), ss_requires = ' + requires_string + ', ss_require = file => { var exports = {}, module = { get exports(){ return exports }, set exports(v){ exports = v } }; ss_requires[file](exports, mod.createRequire(__dirname), module, __filename, __dirname); return exports; }; '
+						'var mo={' + modules.map(([ fn, expose ]) => wrap(expose) + '(module,exports,require){' + fs.readFileSync(path.join(__dirname, fn), 'utf8') + '}').join(',') + '},srequire=(f,m,e)=>(e={},m={get exports(){return e},set exports(v){return e=v}},mo[f](m,e,require),e);'
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));
 				}
 			}catch(err){

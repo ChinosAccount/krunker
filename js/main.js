@@ -1,12 +1,12 @@
 'use strict';
-ss_require('./v8-compile-cache.js');
+srequire('compile-cache');
 var fs = require('fs'),
 	os = require('os'),
 	url = require('url'),
 	url = require('url'),
 	path = require('path'),
 	util = require('util'),
-	fetch = ss_require('./node-fetch.js'),
+	fetch = srequire('fetch'),
 	electron = require('electron'),
 	sploit_folder = path.join(os.homedir(), 'Documents', 'shitsploit'),
 	setup_win = (options, keybinds = []) => {
@@ -70,7 +70,7 @@ var fs = require('fs'),
 	values = {
 		version: electron.app.getVersion(),
 		src_dir: fs.existsSync(path.resolve(__dirname, 'main.js')) ? __dirname : path.join(__dirname, 'res'),
-		consts: ss_require('./consts.js'),
+		consts: srequire('consts'),
 		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
 		folders: {
 			sploit: sploit_folder,
@@ -113,7 +113,7 @@ var fs = require('fs'),
 			}, client: {
 				unlimited_fps: true,
 				adblock: true,
-			}, kb: {
+			}, kb: { // keybinds
 				aim: 3,
 				bhop: 4,
 				esp: 5,
@@ -124,7 +124,7 @@ var fs = require('fs'),
 			},
 		},
 	},
-	media = ss_require('./media.js'),
+	media = srequire('media'),
 	sizes = {
 		splash: {
 			width: 575,
