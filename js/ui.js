@@ -112,7 +112,6 @@ body {
 	flex: 1 1 0;
 	display: flex;
 	flex-direction: column;
-	/* overflow-y: auto; */
 	height: 100%;
 }
 
@@ -166,7 +165,6 @@ body {
 .control-textbox {
 	height: 28px;
 	display: block;
-	/*width: 80%;*/
 	font: 14px Inconsolata, monospace;
 	padding: 0px .75rem 0px 0px;
 	text-align: right;
@@ -291,10 +289,8 @@ var main = async () => {
 	values = await electron.ipcRenderer.invoke('sync_values').then(data => new Proxy(JSON.parse(data), deep_handler));
 	electron.ipcRenderer.on('receive_values', (event, data) => values = new Proxy(JSON.parse(data), deep_handler));
 	
-	var cheat = window.cheat = {
-			keybinds: [],
-		},
-		init_ui = async (title, footer, array) => {
+	var keybinds = [],
+		init_ui = (title, footer, array) => {
 			var con = add_ele('div', document.body, { className: 'con' }),
 				titlebar = add_ele('div', con, { innerHTML: title, className: 'bar bar-top' }),
 				main_border = add_ele('div', con, { className: 'main-border' }),
@@ -475,7 +471,7 @@ var main = async () => {
 					
 					control.update();
 					
-					if(control.key && control.key != 'unset')cheat.keybinds.push({
+					if(control.key && control.key != 'unset')keybinds.push({
 						keycode: !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase(),
 						interact: control.interact,
 					});
@@ -502,7 +498,7 @@ var main = async () => {
 			
 			mouse_move_frame();
 			
-			cheat.keybinds.push({
+			keybinds.push({
 				keycode: ['KeyC', 'F1'],
 				interact: () => electron.ipcRenderer.send('ui_visibility'),
 			});
@@ -541,7 +537,7 @@ var main = async () => {
 		};
 	
 	electron.ipcRenderer.on('keydown', (event, data) => {
-		var keybind = cheat.keybinds.find(keybind => typeof keybind.keycode == 'string'
+		var keybind = keybinds.find(keybind => typeof keybind.keycode == 'string'
 				? keybind.keycode == data.code || keybind.keycode.replace('Digit', 'Numpad') == data.code
 				: keybind.keycode.some(keycode => keycode == data.code || keycode.replace('Digit', 'Numpad') == data.code));
 		

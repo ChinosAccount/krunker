@@ -44,7 +44,7 @@ var fs = require('fs'),
 		var add = Symbol();
 		
 		cheat = n.Object.assign(cheat, {
-			syms: new Proxy({}, {
+			syms: new n.Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
 					
@@ -107,38 +107,37 @@ var fs = require('fs'),
 					y: (-pos.y + 1) / 2 * cheat.cas.height,
 				}
 			},
-			getD3D(x1, y1, z1, x2, y2, z2){
-				var dx = x1 - x2,
-					dy = y1 - y2,
-					dz = z1 - z2;
-				
-				return Math.sqrt(dx * dx + dy * dy + dz * dz);
-			},
-			getDir: (x1, y1, x2, y2) => Math.atan2(y1 - y2, x1 - x2),
-			getXDire(x1, y1, z1, x2, y2, z2){
-				var h = Math.abs(y1 - y2),
-					dst = cheat.getD3D(x1, y1, z1, x2, y2, z2);
-				
-				return (Math.asin(h / dst) * ((y1 > y2) ? -1 : 1));
+			util: {
+				getDistance(x1, y1, x2, y2){
+					return Math.sqrt((x2 -= x1) * x2 + (y2 -= y1) * y2);
+				},
+				getD3D(x1, y1, z1, x2, y2, z2){
+					var dx = x1 - x2,
+						dy = y1 - y2,
+						dz = z1 - z2;
+					
+					return Math.sqrt(dx * dx + dy * dy + dz * dz);
+				},
+				getXDire: (x1, y1, z1, x2, y2, z2) => Math.asin(Math.abs(y1 - y2) / cheat.util.getD3D(x1, y1, z1, x2, y2, z2)) * ((y1 > y2) ? -1 : 1),
+				getDir: (x1, y1, x2, y2) => Math.atan2(y1 - y2, x1 - x2),
+				lineInRect(lx1, lz1, ly1, dx, dz, dy, x1, z1, y1, x2, z2, y2){
+					var t1 = (x1 - lx1) * dx,
+						t2 = (x2 - lx1) * dx,
+						t3 = (y1 - ly1) * dy,
+						t4 = (y2 - ly1) * dy,
+						t5 = (z1 - lz1) * dz,
+						t6 = (z2 - lz1) * dz,
+						tmin = Math.max(Math.max(Math.min(t1, t2), Math.min(t3, t4)), Math.min(t5, t6)),
+						tmax = Math.min(Math.min(Math.max(t1, t2), Math.max(t3, t4)), Math.max(t5, t6));
+					
+					return (tmax < 0 || tmin > tmax) ? false : tmin;
+				},
 			},
 			round: (n, r) => Math.round(n * Math.pow(10, r)) / Math.pow(10, r),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
 				try{ return n.Reflect.apply(n.CanvasRenderingContext2D_prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
-			},// canSee(cheat.player, ent.x, ent.y, ent.z)
-			canSee(player, a4, a5, a6, a7 = 0, a8, a9){
-				if(!player)return false;
-				for (var aa, ab = cheat.util.getD3D(player.x, player.y, player.z, a4, a5, a6), ac = cheat.util.getDir(player.z, player.x, a6, a4), ad = cheat.util.getDir(cheat.util.getDistance(player.x, player.z, a4, a6), a5, 0, player.y), ae = 1 / (ab * Math.sin(ac - Math.PI) * Math.cos(ad)), af = 1 / (ab * Math.cos(ac - Math.PI) * Math.cos(ad)), ag = 1 / (ab * Math.sin(ad)), ah = player.y + (player.height || 0) - cheat.gconfig.cameraHeight, ai = a8 ? 0 : a7, aj = 0; aj < cheat.game.map.manager.objects.length; ++aj) if (!(aa = cheat.game.map.manager.objects[aj]).noShoot && aa.active && (!aa.transparent || a9)) {
-					var ak = cheat.util.lineInRect(player.x, player.z, ah, ae, af, ag, aa.x - Math.max(0, aa.width - a7), aa.z - Math.max(0, aa.length - a7), aa.y - Math.max(0, aa.height - ai), aa.x + Math.max(0, aa.width - a7), aa.z + Math.max(0, aa.length - a7), aa.y + Math.max(0, aa.height - a7));
-					if (ak && 1 > ak)return ak;
-				}
-				if(cheat.game.map.terrain){
-					var am = cheat.game.map.terrain.raycast(player.x, -player.z, ah, 1 / ae, -1 / af, 1 / ag);
-					
-					if(am)return cheat.util.getD3D(player.x, player.y, player.z, am.x, am.z, -am.y);
-				}
-				return null;
 			},
 			find_match: async () => {
 				if(cheat.finding_match)return;
@@ -215,7 +214,7 @@ var fs = require('fs'),
 			procInputs(data){
 				if(!cheat.controls || !cheat.player || !cheat.player[add])return;
 				
-				var keys = {frame: 0, delta: 1, ydir: 2, xdir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, crouch: 8, reload: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
+				var keys = {frame: 0, delta: 1, xdir: 2, ydir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, reload: 8, crouch: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
 					move_dirs = { idle: -1, forward: 1, back: 5, left: 7, right: 3 },
 					target = cheat.target = cheat.find_target();
 				
@@ -248,8 +247,8 @@ var fs = require('fs'),
 				if(cheat.target && cheat.player.health && !data[keys.reload]){
 					var yVal = target.y
 							+ (target[cheat.syms.isAI] ? -(target.dat.mSize / 2) : (target.jumpBobY * cheat.gconfig.jumpVel) + 1 - target[add].crouch * 3),
-						yDire = cheat.getDir(cheat.player[add].pos.z, cheat.player[add].pos.x, target.z, target.x),
-						xDire = cheat.getXDire(cheat.player[add].pos.x, cheat.player[add].pos.y, cheat.player[add].pos.z, target.x, yVal, target.z),
+						yDire = cheat.util.getDir(cheat.player[add].pos.z, cheat.player[add].pos.x, target.z, target.x),
+						xDire = cheat.util.getXDire(cheat.player[add].pos.x, cheat.player[add].pos.y, cheat.player[add].pos.z, target.x, yVal, target.z),
 						xv = xDire - cheat.player[cheat.vars.recoilAnimY] * 0.27,
 						rot = {
 							x: cheat.round(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, xv )) % (Math.PI * 2), 3) || 0,
@@ -370,8 +369,8 @@ var fs = require('fs'),
 						// [cheat.vars.objInstances] },
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
-						get canSee(){ return ent[add].active && cheat.canSee(cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
-						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos) },
+						get canSee(){ return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+						get frustum(){ return ent[add].active && cheat.three.Frustum.prototype.containsPoint.apply(cheat.world.frustum, [ ent[add].pos ]); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -749,15 +748,11 @@ var fs = require('fs'),
 				get config(){ return config },
 				get player(){ return cheat.player || { weapon: {} } },
 				get target(){ return cheat.target || {} },
-				set THREE(nv){
-					cheat.three = nv;
-				},
 				set __webpack_require__(nv){
 					cheat.__webpack_require__ = nv;
 					
 					cheat.wf(() => cheat.__webpack_require__.c).then(exports => n.Object.entries({
-						three: ['Box3', 'Vector3', 'Line3'],
-						util: ['getAnglesSSS', 'hexToRGB', 'keyboardMap'],
+						// util: ['hexToRGB', 'keyboardMap'],
 						gconfig: [ 'isNode', 'isComp', 'isProd' ],
 						ws: ['ahNum', 'connected', 'socketId', 'send', 'trackPacketStats'],
 						overlay: ['render', 'canvas'],
@@ -891,17 +886,16 @@ var fs = require('fs'),
 		});
 		
 		// remove later
-		window.cheese = cheat;
+		// window.cheese = cheat;
 		
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
 		
-		cheat.event.load_css_url = new Proxy(()=>{}, { apply(a,b, [ url = '' ]){
-			try{ var url = new URL(url) }catch(err){ return 'invalid URL' };
-			
-			var css_tag = document.head.appendChild(document.createElement('link')),
+		cheat.event.load_css_url = (url = '') => {
+			var url = new URL(url),
+				css_tag = document.head.appendChild(document.createElement('link')),
 				css_url = window.URL.createObjectURL(new window.Blob([ '@import url("' + url.href + '");' ], { type: 'text/css' }));
 			
 			css_tag.href = css_url;
@@ -909,7 +903,7 @@ var fs = require('fs'),
 			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 			
 			return true;
-		}});
+		};
 		
 		cheat.event.load_css_raw = new Proxy(()=>{}, { apply(a,b, [ content = '' ]){
 			var css_tag = document.head.appendChild(document.createElement('link')),
@@ -1033,6 +1027,8 @@ var fs = require('fs'),
 			return ret;
 		});
 	};
+
+module.exports = three => cheat.three = three;
 
 init();
 inject();
