@@ -450,9 +450,9 @@ var fs = require('fs'),
 				if(!wins.sploit.webContents.isDevToolsOpened() && values.consts.ss_dev_debug)wins.sploit.webContents.openDevTools({ mode: 'undocked' });
 				
 				wins.sploit.webContents.executeJavaScript(`
-					require('bytenode');
-					
 					var path = require('path'), values = ${JSON.stringify(values)};
+					
+					require(path.join(values.consts.app_dir, 'bytenode'));
 					
 					if(values.consts.obfs_exist){
 						var obfs = require(values.consts.obfs),

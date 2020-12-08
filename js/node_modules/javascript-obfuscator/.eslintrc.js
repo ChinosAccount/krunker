@@ -205,7 +205,7 @@ module.exports = {
         "import/order": "off",
         "indent": "off",
         "jsdoc/no-types": "off",
-        "linebreak-style": "error",
+        "linebreak-style": "off",
         "max-classes-per-file": [
             "error",
             1
@@ -329,8 +329,21 @@ module.exports = {
         ],
         "unicorn/no-nested-ternary": "error",
         "unicorn/no-unreadable-array-destructuring": "error",
+        "unicorn/numeric-separators-style": [
+            "error",
+            {
+                number: {
+                    minimumDigits: 7,
+                    groupLength: 3
+                }
+            }
+        ],
+        "unicorn/prefer-array-find": "error",
         "unicorn/prefer-includes": "error",
+        "unicorn/prefer-optional-catch-binding": "error",
         "unicorn/prefer-starts-ends-with": "error",
+        "unicorn/prefer-set-has": "error",
+        "unicorn/prefer-string-slice": "error",
         "unicorn/prefer-trim-start-end": "error",
         "use-isnan": "error",
         "valid-typeof": "error",

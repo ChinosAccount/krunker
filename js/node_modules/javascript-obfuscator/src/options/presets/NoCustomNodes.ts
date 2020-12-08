@@ -5,6 +5,7 @@ import { ObfuscationTarget } from '../../enums/ObfuscationTarget';
 import { SourceMapMode } from '../../enums/source-map/SourceMapMode';
 import { StringArrayEncoding } from '../../enums/node-transformers/string-array-transformers/StringArrayEncoding';
 import { StringArrayWrappersType } from '../../enums/node-transformers/string-array-transformers/StringArrayWrappersType';
+import { StringArrayIndexesType } from '../../enums/node-transformers/string-array-transformers/StringArrayIndexesType';
 
 export const NO_ADDITIONAL_NODES_PRESET: TInputOptions = Object.freeze({
     compact: true,
@@ -21,6 +22,7 @@ export const NO_ADDITIONAL_NODES_PRESET: TInputOptions = Object.freeze({
     identifierNamesGenerator: IdentifierNamesGenerator.HexadecimalIdentifierNamesGenerator,
     identifiersPrefix: '',
     identifiersDictionary: [],
+    ignoreRequireImports: false,
     inputFileName: '',
     log: false,
     numbersToExpressions: false,
@@ -43,8 +45,13 @@ export const NO_ADDITIONAL_NODES_PRESET: TInputOptions = Object.freeze({
     stringArrayEncoding: [
         StringArrayEncoding.None
     ],
+    stringArrayIndexesType: [
+        StringArrayIndexesType.HexadecimalNumber
+    ],
+    stringArrayIndexShift: false,
     stringArrayWrappersChainedCalls: false,
     stringArrayWrappersCount: 0,
+    stringArrayWrappersParametersMaxCount: 2,
     stringArrayWrappersType: StringArrayWrappersType.Variable,
     stringArrayThreshold: 0,
     target: ObfuscationTarget.Browser,

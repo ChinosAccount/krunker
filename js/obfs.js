@@ -1,10 +1,10 @@
-var bytenode = require('bytenode'),
-	jsob = require('javascript-obfuscator'),
-	path = require('path'),
-	fs = require('fs'),
+'use strict';
+var fs = require('fs'),
 	v8 = require('v8'),
-	mod = require('module'),
+	path = require('path'),
 	consts = require('./consts.js'),
+	bytenode = require('./bytenode'),
+	jsob = require('javascript-obfuscator'),
 	default_obfs_ops = {
 		splitStrings: true,
 		stringArrayThreshold: 1,
