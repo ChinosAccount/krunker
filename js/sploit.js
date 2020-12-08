@@ -236,9 +236,8 @@ var fs = require('fs'),
 				if(cheat.player && !cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] && config.aim.auto_reload)data[keys.reload] = 1;
 				
 				if(config.aim.triggerbot){
-					cheat.raycaster || (cheat.raycaster = new cheat.three.Raycaster(), 
-					cheat.mid = new cheat.three.Vector2(0, 0));
-					var pm = cheat.game.players.list.filter(ent => ent[add] && ent[add].obj && ent[add].enemy && ent.canSee && ent.health).map(ent => ent[add].obj);
+					cheat.mid = new cheat.three.Vector2(0, 0);
+					var pm = cheat.game.players.list.filter(ent => ent[add] && ent[add].obj && ent[add].enemy && ent[add].canSee && ent.health).map(ent => ent[add].obj);
 					
 					cheat.raycaster.setFromCamera(cheat.mid, cheat.world.camera), cheat.raycaster.intersectObjects(pm, true).length && (data[keys.shoot] = cheat.player[cheat.vars.didShoot] ? 0 : 1);
 				}
@@ -699,7 +698,7 @@ var fs = require('fs'),
 			find_vars: [
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
 				['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
-				['inView', /continue;if\(\S+\['\S+']\|\|!\S+\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 2],
+				['inView', /&&!\w\['\w+']&&\w\['\w+'\]&&\w\['(\w+)']\){/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
@@ -892,6 +891,8 @@ var fs = require('fs'),
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
+		
+		cheat.raycaster = new cheat.three.Raycaster();
 		
 		cheat.event.load_css_url = (url = '') => {
 			var url = new URL(url),
