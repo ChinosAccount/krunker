@@ -6,6 +6,6 @@
 
 ``cd sploit``
 
-``./install.bat``
+``./install.cmd``
 
-``./test.bat``
+``./test.cmd``
