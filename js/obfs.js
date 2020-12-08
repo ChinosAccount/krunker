@@ -60,6 +60,7 @@ module.exports = {
 					var modules = [ ['consts.js', 'consts'], ['media.js', 'media'], ['v8-compile-cache.js', 'compile-cache'], ['node-fetch.js', 'fetch'] ],
 						wrap = str => JSON.stringify([ str ]).slice(1, -1);
 					
+					// pack modules in single file
 					fs.writeFileSync(file_obfus, jsob.obfuscate(
 						'var mo={' + modules.map(([ fn, expose ]) => wrap(expose) + '(module,exports,require){' + fs.readFileSync(path.join(__dirname, fn), 'utf8') + '}').join(',') + '},srequire=(f,m,e)=>(e={},m={get exports(){return e},set exports(v){return e=v}},mo[f](m,e,require),e);'
 					+ fs.readFileSync(file_script, 'utf8'), options.obio_ops));
