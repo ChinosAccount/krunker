@@ -370,7 +370,7 @@ var fs = require('fs'),
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
-						get frustum(){ return ent[add].active && cheat.three.Frustum.prototype.containsPoint.apply(cheat.world.frustum, [ ent[add].pos ]); },
+						get frustum(){ return ent[add].active && n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ]); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -874,7 +874,6 @@ var fs = require('fs'),
 		
 		electron.ipcRenderer.on('keydown', (event, data) => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[data.code] = true));
 		electron.ipcRenderer.on('keyup', (event, data) => cheat.inputs[data.code] = false);
-		
 		
 		electron.ipcRenderer.on('esc', () => {
 			document.exitPointerLock();
