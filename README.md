@@ -14,5 +14,6 @@
 
 ## building
 
-todo
+modify package.json build options as needed and run the build batch file like such:
 
+``./build.cmd``
