@@ -26,6 +26,8 @@ modify package.json build options as needed and run the build batch file like su
 
 [game versions](https://mega.nz/folder/eE9ghBzS#nw_TzAoWnK9Cz5Sry-lECw) (might still be uploading, takes 3 gb as of 12/9/2020)
 
+[scrape game.js](https://mega.nz/file/rI8iiLrS#PNmS1IR_X5ZMt2P1uNjaz6r5uNtGSNgCFYWDmb2UxSA) pasting the script in devtools on https://krunker.io/ should download the current game code
+
 ### leaked source:
 
 [leak deflated](https://mega.nz/folder/OJEgjLIJ#YEyz7VsyyjauZarD8JLldg)
