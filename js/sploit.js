@@ -70,7 +70,6 @@ var fs = require('fs'),
 					return target[prop];
 				}
 			}),
-			event: new events(),
 			object_list: n.Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
 			vars_not_found: [],
 			vars: {},
@@ -359,8 +358,6 @@ var fs = require('fs'),
 				}
 			},
 			process(){ try{
-				cheat.event.player = cheat.player;
-				
 				if(!cheat.game)return;
 				
 				if(!cheat.game.config.deltaMlt_hooked){
@@ -426,26 +423,11 @@ var fs = require('fs'),
 					
 					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? ent[add].frustum : ent[add].enemy ? ent[add].canSee : true;
 				});
-				
-				cheat.event.emit('process');
 			}catch(err){ cheat.err('CAUGHT:', err) }},
 			render(){ try{ // rendering tasks
-				if(cheat.player){
-					if(cheat.player.prev_health == null)cheat.player.prev_health = 0;
-					
-					if(cheat.player.prev_health != cheat.player[cheat.vars.maxHealth] && cheat.player.health == cheat.player[cheat.vars.maxHealth])cheat.event.emit('client-spawn', cheat.player);
-					else if(cheat.player.prev_health && !cheat.player.health)cheat.event.emit('client-died');
-					
-					
-					cheat.player.prev_health = cheat.player.health;
-				}
-				
 				if(!cheat.cas || !cheat.ctx){
 					cheat.cas = document.querySelector('#game-overlay');
 					cheat.ctx = cheat.cas ? cheat.cas.getContext('2d', { alpha: true }) : {};
-					
-					cheat.event.canvas = cheat.canvas;
-					cheat.event.ctx = cheat.ctx;
 					
 					cheat.center_vec = {
 						x: window.innerWidth / 2,
@@ -866,7 +848,6 @@ var fs = require('fs'),
 					}
 					
 					cheat.render();
-					cheat.event.emit('render');
 					
 					return n.Reflect.apply(frame, window, [ func ]);
 				},
@@ -880,12 +861,6 @@ var fs = require('fs'),
 				info(data){
 					switch(data){
 						case'injected':
-							
-							cheat.wf(() => cheat.game).then(game => {
-								cheat.event.game = game;
-								cheat.event.players = cheat.game.players.list;
-								cheat.event.emit('game-load', game);
-							});
 							
 							cheat.log('injected to game');
 							
@@ -927,29 +902,6 @@ var fs = require('fs'),
 		
 		cheat.raycaster = new cheat.three.Raycaster();
 		
-		cheat.event.load_css_url = (url = '') => {
-			var url = new URL(url),
-				css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ '@import url("' + url.href + '");' ], { type: 'text/css' }));
-			
-			css_tag.href = css_url;
-			css_tag.rel = 'stylesheet';	
-			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
-			
-			return true;
-		};
-		
-		cheat.event.load_css_raw = new Proxy(()=>{}, { apply(a,b, [ content = '' ]){
-			var css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ content ], { type: 'text/css' }));
-			
-			css_tag.href = css_url;
-			css_tag.rel = 'stylesheet';	
-			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
-			
-			return true;
-		}});
-		
 		cheat.wf(() => document && document.head).then(() => { try{
 			// load cheat font
 			new window.FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
@@ -982,18 +934,6 @@ var fs = require('fs'),
 				err_func = (...args) => electron.ipcRenderer.send('add_log', {
 					log: sanitize(util.format(...args)),
 					color: '#F33',
-				}),
-				sploit_safe = new n.Proxy({}, {
-					get: (obj, prop) => { try{
-						if(n.Object.getOwnPropertyNames(n.Object.prototype).some(blocked => prop == blocked))return void'';
-						var ret = n.Reflect.get(cheat.event, prop),
-							ret1 = ret;
-						
-						if(ret && ret.constructor == Function)ret = new Proxy(()=>{}, { apply: (target, that, args) => n.Reflect.apply(ret1, that, args) });
-						
-						return ret;
-					}catch(err){ err_func(err) }},
-					set: (obj, prop, value) => n.Reflect.set(cheat.event, prop, value),
 				});
 			
 			// load js
@@ -1004,22 +944,6 @@ var fs = require('fs'),
 					{ log: clean_func(log_func), error: clean_func(err_func) },
 				]);
 			}catch(err){ err_func(err) }});
-			
-			// load css 
-			var content = fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => window.URL.createObjectURL(new Blob([ fs.readFileSync(path.join(values.folders.css, file_name), 'utf8') ], { type: 'text/css' }))).map(blob => '@import url("' + blob + '");') + `
-#clientExit {
-	display: flex !important;
-}
-
-#onetrust-consent-sdk, #streamContainer, #aHolder, #endAHolderL, #endAHolderR {
-	display: none !important;
-}`, // hide shitty consent sdk and krunker propaganda and show client exit
-				css_tag = document.head.appendChild(document.createElement('link')),
-				css_url = window.URL.createObjectURL(new window.Blob([ content ], { type: 'text/css' }));
-			
-			css_tag.href = css_url;
-			css_tag.rel = 'stylesheet';	
-			css_tag.addEventListener('load', () => window.URL.revokeObjectURL(css_url));
 		}catch(err){ console.trace(err) } });
 	},
 	inject = () => window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, that, [ node ]) => {
@@ -1052,8 +976,6 @@ var fs = require('fs'),
 					if(match && match[pos])cheat.vars[label] = match[pos];
 					else cheat.vars_not_found.push(label), cheat.vars[label] = label;
 				});
-				
-				cheat.event.vars = Object.assign({}, cheat.vars);
 				
 				if(cheat.vars_not_found.length)cheat.err('Could not find: ' + cheat.vars_not_found.join(', '));
 				

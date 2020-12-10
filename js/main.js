@@ -354,6 +354,15 @@ var fs = require('fs'),
 				}
 			}]);
 			
+			// inject css
+			wins.game.webContents.on('did-finish-load', () => {
+				var css = fs.readdirSync(values.folders.css).filter(file_name => path.extname(file_name).match(/\.css$/i)).map(file_name => fs.readFileSync(path.join(values.folders.css, file_name), 'utf8')).concat(`#clientExit{display:flex !important}#onetrust-consent-sdk,#streamContainer,#aHolder,#endAHolderL,#endAHolderR{display:none !important}`).join('\n');
+				
+				// hide shitty consent sdk and krunker propaganda and show client exit
+				wins.game.webContents.insertCSS(css);
+			
+			});
+			
 			wins.game.setMenu(null);
 			wins.game.loadURL('https://krunker.io', { userAgent: values.useragent });
 			
