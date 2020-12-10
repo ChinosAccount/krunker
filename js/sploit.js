@@ -113,6 +113,39 @@ var fs = require('fs'),
 				}
 			},
 			util: {
+				canSee(player, target, offset = 0){
+					if(!player)return false;
+					
+					var d3d = cheat.util.getD3D(player.x, player.y, player.z, target.x, target.y, target.z),
+						dir = cheat.util.getDir(player.z, player.x, target.z, target.x),
+						dist_dir = cheat.util.getDir(cheat.util.getDistance(player.x, player.z, target.x, target.z), target.y, 0, player.y),
+						ad = 1 / (d3d * Math.sin(dir - Math.PI) * Math.cos(dist_dir)),
+						ae = 1 / (d3d * Math.cos(dir - Math.PI) * Math.cos(dist_dir)),
+						af = 1 / (d3d * Math.sin(dist_dir)),
+						height = player.y + (player.height || 0) - 1.15; /* 1.15 = config.cameraHeight */
+					
+					// iterate through game objects
+					for(var ind in cheat.game.map.manager.objects){
+						var obj = cheat.game.map.manager.objects[ind];
+						
+						if(
+							!obj.noShoot &&
+							obj.active &&
+							(!obj.transparent || obj.penetrable && cheat.player.weapon.pierce)
+						){
+							var in_rect = cheat.util.lineInRect(player.x, player.z, height, ad, ae, af, obj.x - Math.max(0, obj.width - offset), obj.z - Math.max(0, obj.length - offset), obj.y - Math.max(0, obj.height - offset), obj.x + Math.max(0, obj.width - offset), obj.z + Math.max(0, obj.length - offset), obj.y + Math.max(0, obj.height - offset));
+							
+							if(in_rect && 1 > in_rect)return in_rect;
+						}
+					}
+					
+					// iterate through game terrain
+					if(cheat.game.map.terrain){
+						var al = cheat.game.map.terrain.raycast(player.x, -player.z, height, 1 / ad, -1 / ae, 1 / af);
+						if(al)return cheat.util.getD3D(player.x, player.y, player.z, al.x, al.z, -al.y);
+					}
+					return null;
+				},
 				getDistance(x1, y1, x2, y2){
 					return Math.sqrt((x2 -= x1) * x2 + (y2 -= y1) * y2);
 				},
@@ -369,7 +402,9 @@ var fs = require('fs'),
 						// [cheat.vars.objInstances] },
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
-						get canSee(){ return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false },
+						get canSee(){
+							return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false;
+						},
 						get frustum(){ return ent[add].active && n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ]); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
@@ -389,7 +424,7 @@ var fs = require('fs'),
 					// we are at fastest tick so we can do this
 					if(ent[add].obj)ent[add].obj.visible = true;
 					
-					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? ent[add].frustum : ent[add].inview;
+					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? ent[add].frustum : ent[add].enemy ? ent[add].canSee : true;
 				});
 				
 				cheat.event.emit('process');
@@ -696,12 +731,12 @@ var fs = require('fs'),
 			}catch(err){ cheat.err(err) }},
 			find_vars: [
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
-				['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
+				// ['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
 				['inView', /&&!\w\['\w+']&&\w\['\w+'\]&&\w\['(\w+)']\){/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
-				['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
+				// ['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
 				['didShoot', /--,\w+\['(\w+)']=!0x0/, 1],
 				['ammos', /\['length'];for\(\w+=0x0;\w+<\w+\['(\w+)']\['length']/, 1],
 				['weaponIndex', /\['weaponConfig']\[\w+]\['secondary']&&\(\w+\['(\w+)']==\w+/, 1],
@@ -722,7 +757,7 @@ var fs = require('fs'),
 			],
 			patches: new Map([
 				// wallbangs
-				[/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (!ssd.target.isAI && ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
+				// [/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
 				
 				// get vars
 				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
@@ -883,7 +918,7 @@ var fs = require('fs'),
 		});
 		
 		// remove later
-		// window.cheese = cheat;
+		window.cheese = cheat;
 		
 		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
 		
