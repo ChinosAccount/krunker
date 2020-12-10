@@ -22,7 +22,7 @@ modify package.json build options as needed and run the build batch file like su
 
 ### we dont just guess how the game works 😆
 
-[general resources](https://mega.nz/folder/3dVUUBZQ#gbn1N9Obk6HYReg2Z8p-ZQ)
+#### [root folder](https://mega.nz/folder/3dVUUBZQ#gbn1N9Obk6HYReg2Z8p-ZQ)
 
 [leak deflated](https://mega.nz/folder/OJEgjLIJ#YEyz7VsyyjauZarD8JLldg)
 original leak was all bundled together with webpack
