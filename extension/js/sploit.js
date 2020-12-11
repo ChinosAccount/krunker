@@ -1,34 +1,66 @@
-'use strict';
-var fs = require('fs'),
-	path = require('path'),
-	events = require('events'),
-	electron = require('electron'),
-	cheat = {
-		// wait for promise
-		wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
-			var interval = setInterval(() => {
-				var checked = check();
-				
-				if(checked)clearInterval(interval); else return;
-				
-				resolve(checked);
-				interval = null;
-			}, 15);
-			
-			setTimeout(() => {
-				if(interval)return clearInterval(interval), reject('timeout');
-			}, timeout);
-		}),
+(() => {
+
+var n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
+		style: 'display:none',
+	}).contentWindow,
+	add = Symbol(),
+	add_ele = (node_name, parent, attributes) => Object.assign(parent.appendChild(document.createElement(node_name)), attributes),
+	values = {
+		version: '1.0.5',
+		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
+		ui_visible: true,
+		oconfig: {
+			esp: {
+				status: 'off',
+				nametags: false,
+				tracers: false,
+				health_bar: false,
+				wall_opacity: 0.6,
+				walls: false,
+				minimap: false,
+			}, game: {
+				bhop: 'off',
+				pitch_mod: 'off',
+				autoreload: false,
+				overlay: false,
+				wireframe: false,
+				auto_respawn: false,
+				skins: false,
+			}, aim: {
+				status: 'off',
+				target: 'head',
+				target_sorting: 'dist2d',
+				frustrum_check: false,
+				auto_reload: false,
+				wallbangs: false,
+				triggerbot: false,
+				smooth: false,
+				smoothn: 25,
+			}, client: {
+				unlimited_fps: true,
+				adblock: true,
+			}, kb: { // keybinds
+				aim: 3,
+				bhop: 4,
+				esp: 5,
+				tracers: 6,
+				nametags: 7,
+				overlay: 8,
+				disable_settings: 9,
+			},
+		},
+		consts: {
+			ss_dev: true,
+		},
 	},
-	// natives
-	n = { CanvasRenderingContext2D_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(CanvasRenderingContext2D.prototype)), Function_prototype: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Function.prototype)), Object: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Object)), Reflect: Object.defineProperties({}, Object.getOwnPropertyDescriptors(Reflect)), Proxy: Proxy.bind() },
-	// experimental hook
+	cheat = {},
+	config = {},
 	uhook = (orig_func, handler) => {
 		var func = n.Object.defineProperties(function(...args){ return n.Reflect.apply(handler, this, [orig_func, this, args]) }, n.Object.getOwnPropertyDescriptors(orig_func));
 		
 		n.Reflect.defineProperty(func, 'length', { value: orig_func.length, configurable: true, enumerable: false, writable: false });
 		n.Reflect.defineProperty(func, 'name', { value: orig_func.name, configurable: true, enumerable: false, writable: false });
-		func.toString = n.Reflect.apply(n.Function_prototype.bind, orig_func.toString, [orig_func]);
+		func.toString = n.Reflect.apply(n.Function.prototype.bind, orig_func.toString, [orig_func]);
 		func.toString.toString = orig_func.toString.toString;
 		
 		// function prototype usually undefined or void
@@ -36,19 +68,23 @@ var fs = require('fs'),
 		
 		return func
 	},
-	init = async () => {
-		var values = await electron.ipcRenderer.invoke('sync_values').then(JSON.parse),
-			config = values.config; // assign it too lazy to rewrite all stuff
-		
-		electron.ipcRenderer.on('receive_values', (event, data) => {
-			values = JSON.parse(data);
-			config = values.config;
-		});
-		
-		// addon for game objects
-		var add = Symbol();
-		
-		cheat = n.Object.assign(cheat, {
+	init = () => {
+		cheat = {
+			keybinds: [],
+			wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
+				var interval = setInterval(() => {
+					var checked = check();
+					
+					if(checked)clearInterval(interval); else return;
+					
+					resolve(checked);
+					interval = null;
+				}, 15);
+				
+				setTimeout(() => {
+					if(interval)return clearInterval(interval), reject('timeout');
+				}, timeout);
+			}),
 			syms: new n.Proxy({}, {
 				get(target, prop){
 					if(!target[prop])target[prop] = Symbol();
@@ -121,7 +157,7 @@ var fs = require('fs'),
 						ad = 1 / (d3d * Math.sin(dir - Math.PI) * Math.cos(dist_dir)),
 						ae = 1 / (d3d * Math.cos(dir - Math.PI) * Math.cos(dist_dir)),
 						af = 1 / (d3d * Math.sin(dist_dir)),
-						height = player.y + (player.height || 0) - 1.15; /* 1.15 = config.cameraHeight */
+						height = player.y + (player.height || 0) - 1.15; // 1.15 = config.cameraHeight
 					
 					// iterate through game objects
 					for(var ind in cheat.game.map.manager.objects){
@@ -174,7 +210,7 @@ var fs = require('fs'),
 			ctr(label, args = []){ // ctx raw
 				if(!cheat.ctx)return;
 				
-				try{ return n.Reflect.apply(n.CanvasRenderingContext2D_prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
+				try{ return n.Reflect.apply(n.CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
 			},
 			find_match: async () => {
 				if(cheat.finding_match)return;
@@ -268,7 +304,7 @@ var fs = require('fs'),
 				// auto reload, currentAmmo set earlier
 				if(cheat.player && !cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] && config.aim.auto_reload)data[keys.reload] = 1;
 				
-				if(config.aim.triggerbot){
+				if(config.aim.triggerbot && cheat.player[add].aiming){
 					cheat.mid = new cheat.three.Vector2(0, 0);
 					var pm = cheat.game.players.list.filter(ent => ent[add] && ent[add].obj && ent[add].enemy && ent[add].canSee && ent.health).map(ent => ent[add].obj);
 					
@@ -289,12 +325,7 @@ var fs = require('fs'),
 					
 					// if fully aimed or weapon cant even be aimed or weapon is melee and nearby, shoot
 					if(
-						(config.aim.status == 'silent' || config.aim.status == 'full') &&
-						(
-							!cheat.player[cheat.vars.aimVal] ||
-							cheat.player.weapon.noAim ||
-							(cheat.player.weapon.melee && cheat.player[add].pos.distanceTo(target[add].pos) <= 18)
-						)
+						(config.aim.status == 'silent' || config.aim.status == 'full') && cheat.player[add].aiming
 					)(cheat.player[cheat.vars.ammos][cheat.player[cheat.vars.weaponIndex]] || cheat.player.weapon.ammo == null) ? data[keys.shoot] = 1 : data[keys.reload] = 1;
 					
 					if(config.aim.smooth)switch(config.aim.status){
@@ -393,6 +424,9 @@ var fs = require('fs'),
 							get z(){ return ent.z || 0 },
 							project(t){ return this.applyMatrix4(t.matrixWorldInverse).applyMatrix4(t.projectionMatrix)},
 							applyMatrix4: function(t){var e=this.x,n=this.y,r=this.z,i=t.elements,a=1/(i[3]*e+i[7]*n+i[11]*r+i[15]);return this.x=(i[0]*e+i[4]*n+i[8]*r+i[12])*a,this.y=(i[1]*e+i[5]*n+i[9]*r+i[13])*a,this.z=(i[2]*e+i[6]*n+i[10]*r+i[14])*a,this},
+						},
+						get aiming(){
+							return !ent[cheat.vars.aimVal] || ent.weapon.noAim || cheat.target && cheat.target[add] && ent.weapon.melee && ent[add].pos.distanceTo(cheat.target[add].pos) <= 18;
 						},
 						get crouch(){ return ent[cheat.vars.crouchVal] },
 						get obj(){ return ent?.lowerBody?.parent?.parent },
@@ -560,6 +594,7 @@ var fs = require('fs'),
 						[['#BBB', 'Player: '], ['#FFF', cheat.player && cheat.player[add] && cheat.player[add].pos ? ['x', 'y', 'z'].map(axis => axis + ': ' + cheat.player[add].pos[axis].toFixed(2)).join(', ') : 'N/A']],
 						[['#BBB', 'Target: '], ['#FFF', cheat.target && cheat.target.isActive ? cheat.target.alias + ', ' + ['x', 'y', 'z'].map(axis => axis + ': ' + cheat.target.pos[axis].toFixed(2)).join(', ') : 'N/A']],
 						[['#BBB', 'Hacker: '], [window.activeHacker ? '#0F0' : '#F00', window.activeHacker ? 'TRUE' : 'FALSE']],
+						[['#BBB', 'Aiming: '], [cheat.player && cheat.player[add] && cheat.player[add].aiming ? '#0F0' : '#F00', cheat.player && cheat.player[add] && cheat.player[add].aiming ? 'TRUE' : 'FALSE']],
 					].forEach((line, index, lines) => {
 						var text_xoffset = 0;
 						
@@ -713,7 +748,6 @@ var fs = require('fs'),
 			}catch(err){ cheat.err(err) }},
 			find_vars: [
 				['isYou', /this\['accid'\]=0x0,this\['(\w+)'\]=\w+,this\['isPlayer'\]/, 1],
-				// ['objInstances', /continue;if\(\S+\['\S+']\|\|!U\['(\S+)']\)continue;if\(!\S+\['(\S+)']\)continue/, 1],
 				['inView', /&&!\w\['\w+']&&\w\['\w+'\]&&\w\['(\w+)']\){/, 1],
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
@@ -726,16 +760,6 @@ var fs = require('fs'),
 				['yVel', /this\['y']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedY']/, 1],
 				['mouseDownR', /this\['(\w+)']=0x0,this\['keys']=/, 1], 
 				['recoilAnimY', /this\['reward']=0x0,this\['\w+']=0x0,this\['(\w+)']=0x0,this\['\w+']=0x0,this\['\w+']=0x1,this\['slideLegV']/, 1],
-				/*
-				['reloadTimer', /this\['(\w+)']-=\w+,\w+\['reloadUIAnim']/, 1],
-				['recoilAnimY', /this\['(\w+)']=0x0,this\['recoilForce'\]=0x0/, 1],
-				['noclip', /Noclip\\x20-\\x20'\+\(\w+\['(\w+)']\?'Enabled/, 1],
-				['nAuto', /!this\['doingInter']\){var \w+=this\['\w+']\|\|!this\['weapon']\['(\w+)']&&a0\[0x5];/, 1],
-				['xVel', /this\['x']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedX']/, 1],
-				['zVel', /this\['z']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedZ']/, 1],
-				['xDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 1],
-				['yDire', /this\['(\w+)']=\w+\['round']\(0x3\),this\['(\w+)']=\w+\['round']/, 2],
-				*/
 			],
 			patches: new Map([
 				// wallbangs
@@ -872,89 +896,48 @@ var fs = require('fs'),
 				},
 			},
 			inputs: [],
-		}); 
+			three: {},
+		};
+		
+		fetch('https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.1/howler.min.js').then(res => res.text()).then(text => new Function(text)());
+		
+		fetch('https://cdnjs.cloudflare.com/ajax/libs/three.js/r123/three.min.js').then(res => res.text()).then(text => {
+			var args = {
+					exports: {},
+					module: { get exports(){ return args.exports; }, set exports(v){ return args.exports = v; }},
+				};
+			
+			Reflect.apply(new Function(Object.keys(args), text + '\n//# sourceURL=three.min.js'), args.module, Object.values(args));
+			
+			cheat.three = args.exports;
+			
+			cheat.raycaster = new cheat.three.Raycaster();
+		});
 		
 		// pass storage object to game
 		cheat.patches.set(/^/, '((ssd, Proxy) => { return ');
-		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '(), ' + cheat.objs.storage + '.' + cheat.rnds.storage + '().proxy,)');
+		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '(), ' + cheat.objs.storage + '.' + cheat.rnds.storage + '().proxy)');
 		
 		setInterval(cheat.process_interval, 1000);
 		
 		cheat.storage.procInputs = cheat.procInputs;
 		
-		electron.ipcRenderer.on('keydown', (event, data) => (document.activeElement ? document.activeElement.nodeName != 'INPUT' : true) && (cheat.inputs[data.code] = true));
-		electron.ipcRenderer.on('keyup', (event, data) => cheat.inputs[data.code] = false);
-		
-		electron.ipcRenderer.on('esc', () => {
-			document.exitPointerLock();
-			
-			cheat.key_press(18, 'Alt', 'AltLeft', 'keydown');
-			cheat.key_press(18, 'Alt', 'AltLeft', 'keyup');
-		});
-		
-		// remove later
-		window.cheese = cheat;
-		
-		window.prompt = text => electron.ipcRenderer.sendSync('prompt', { type: 'text', data: text });
-		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
 		
-		cheat.raycaster = new cheat.three.Raycaster();
-		
-		cheat.wf(() => document && document.head).then(() => { try{
-			// load cheat font
-			new window.FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
-				family: 'Inconsolata',
-				style: 'normal',
-				weight: 400,
-				stretch: '100%',
-				unicodeRange: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD',
-			}).load().then(font => document.fonts.add(font));
-			
-			cheat.wf(() => document.querySelector('#subLogoButtons')).then(() => {
-				// safer to use queryselectorall incase the element does not exist
-				document.querySelectorAll('.menuItemIcon').forEach(node => node.style.height = '60px');
-				document.querySelectorAll('.downloadClient, #merchImg').forEach(node => node.remove());
-				
-				var button = document.querySelector('#subLogoButtons').appendChild(document.createElement('div'));
-				button.setAttribute('class', 'button small buttonB');
-				button.addEventListener('mouseenter', window.playTick);
-				button.addEventListener('click', () => window.location.href = 'https://krunker.io');
-				button.innerHTML = 'Find game';
-			}, 7500);
-			
-			var clean_func = func => new Proxy(()=>{}, { apply: (bad_func, ...args) => n.Reflect.apply(func, ...args) }),
-				sanitize = str => [...str].map(char => '&#' + char.charCodeAt() + ';').join(''),
-				util = require('util'),
-				log_func = (...args) => electron.ipcRenderer.send('add_log', {
-					log: sanitize(util.format(...args)),
-					color: '#FFF',
-				}),
-				err_func = (...args) => electron.ipcRenderer.send('add_log', {
-					log: sanitize(util.format(...args)),
-					color: '#F33',
-				});
-			
-			// load js
-			fs.readdirSync(values.folders.js).filter(file_name => path.extname(file_name).match(/\.js$/i)).map(file_name => fs.readFileSync(path.join(values.folders.js, file_name), 'utf8')).forEach(data => { try{
-				n.Reflect.apply(n.Reflect.construct(window.Function, ['unsafeWindow', 'sploit', 'console', data]), window, [
-					window,
-					sploit_safe, 
-					{ log: clean_func(log_func), error: clean_func(err_func) },
-				]);
-			}catch(err){ err_func(err) }});
-		}catch(err){ console.trace(err) } });
+		// load cheat font
+		new FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
+			family: 'Inconsolata',
+			style: 'normal',
+			weight: 400,
+			stretch: '100%',
+			unicodeRange: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD',
+		}).load().then(font => document.fonts.add(font));
 	},
 	inject = () => window.HTMLBodyElement.prototype.appendChild = uhook(window.HTMLBodyElement.prototype.appendChild, (target, that, [ node ]) => {
 		var ret = n.Reflect.apply(target, that, [node]);
 		
 		if(node.nodeName == 'IFRAME' && node.style.display == 'none'){
-			/*
-			// webassembly ran in an iframe while electron uses
-			// a preload throws an error in later versions
-			*/
-			node.contentWindow.WebAssembly = window.WebAssembly;
 			node.contentWindow.Response.prototype.arrayBuffer = uhook(node.contentWindow.Response.prototype.arrayBuffer, (target_buf, that, args) => n.Reflect.apply(target_buf, that, args).then(ret => {
 				var arr = new Uint8Array(ret),
 					// first character of game is !
@@ -986,10 +969,790 @@ var fs = require('fs'),
 		}
 		
 		return ret;
-	});
+	}),
+	base_css = `
+.con {
+	z-index: 9000000;
+	position: absolute;
+	display: flex;
+	width: 400px;
+	height: 350px;
+	background: #112;
+	border: none;
+	flex-direction: column;
+	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+	user-select: none;
+}
 
-// sploit module is called with (three), only exposed part is threejs
-module.exports = three => cheat.three = three;
+.con, .con * {
+	color: #eee;
+	font: 13px Inconsolata, monospace;
+}
+
+.cons {
+	display: flex;
+	flex: 1 1 0;
+}
+ 
+.bar {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	-webkit-app-region: drag;
+}
+
+.bar {
+	height: 30px;
+	min-height: 30px;
+	line-height: 28px;
+	text-align: center;
+}
+
+.bar-top {
+	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+	border: 2px solid #eee;
+}
+
+.bar-top:hover {
+	border-color: #29F;
+}
+
+.bar-top:active {
+	background: #224;
+}
+
+.main-border {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	border: 2px solid #eee;
+	border-top: none;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+	overflow: hidden;
+}
+
+.sidebar-con {
+	width: 30%;
+	height: auto;
+	display: block;
+	flex: none;
+	border-right: 2px solid #445;
+	border-bottom: 2px solid #445
+}
+
+.tab-button {
+	height: 36px;
+	line-height: 36px;
+	text-align: center;
+	border-bottom: 2px solid #445;
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+.tab-button:hover {
+	background: #666;
+}
+
+.tab-button:active {
+	background: #333;
+	box-shadow: -3px -1px 0px 3px #CCC6;
+}
+
+.content-con {
+	flex: 1 1 0;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.content-con::-webkit-scrollbar {
+	width: 10px;
+}
+
+.content-con::-webkit-scrollbar-thumb {
+	background-color: #EEE;
+}
+
+.content {
+	min-height: 36px;
+	border-bottom: 2px solid #445;
+	display: flex;
+	flex-direction: row
+}
+
+.control-button {
+	width: 36px;
+	text-align: center;
+	line-height: 36px;
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+.control-button:hover {
+	background: #333;
+	filter: brightness(125%)
+}
+
+.control-button:active {
+	box-shadow: 0px 0px 0px 3px #CCC6;
+}
+
+.control-button.true {
+	background: #2A0;
+}
+
+.control-button.true:active {
+	box-shadow: 0px 0px 0px 3px #2A06;
+}
+
+.control-button.false {
+	background: #A00;
+}
+
+.control-button.false:active {
+	box-shadow: 0px 0px 0px 3px #A006;
+}
+
+.control-textbox {
+	height: 28px;
+	display: block;
+	font: 14px Inconsolata, monospace;
+	padding: 0px .75rem 0px 0px;
+	text-align: right;
+	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+	border: 1px solid #2B4194;
+	margin: auto 3px;
+}
+
+.control-textbox:focus {
+	box-shadow: 0px 0px 0px 3px #037;
+}
+
+.control-label {
+	flex: 1 1 0;
+	padding-left: 15px;
+	line-height: 36px;
+	border-left: 2px solid #445;
+}
+
+.control-slider {
+	-webkit-appearance: none;
+	appearance: none;
+	flex: 1 1 0;
+	height: 28px;
+	margin: 4px 0 4px 5px;
+	cursor: w-resize;
+	background: #333
+}
+
+.control-slider:hover {
+	background: #333
+}
+
+.control-slider-bg {
+	background: #2ad;
+	height: 100%
+}
+
+.control-slider:hover .control-slider-bg {
+	background: #4ad
+}
+
+.control-slider::after {
+	position: relative;
+	height: 100%;
+	text-align: center;
+	display: block;
+	line-height: 28px;
+	top: -28px;
+	content: attr(data)
+}
+
+.tab-desc {
+	text-align: center;
+	font-size: 12px;
+	width: 100%;
+	line-height: 34px;
+	height: 34px;
+}
+
+.ver {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	width: 60px;
+	margin: auto;
+	line-height: 34px;
+	height: 34px;
+	text-align: center;
+}
+
+.log {
+	padding: 4px;
+	user-select: text;
+	border-bottom: 2px solid #445;
+	min-height: 20px;
+	overflow: hidden;
+	line-height: 19px;
+	font-size: 13px;
+	flex: none;
+}
+
+.log-badge {
+	display: inline;
+	background: #FFF;
+	color: black;
+	border-radius: 30%;
+	width: 14px;
+	height: 14px;
+	padding: 2px;
+	margin: auto 5px;
+	text-align: center;
+	font-size: 11px;
+	line-height: 13px;
+	user-select: none;
+}
+
+.log-timestamp::before {
+	content: '[';
+}
+
+.log-timestamp::after {
+	content: ']';
+}
+
+.log-timestamp {
+	display: inline;
+	margin-right: 5px;
+	user-select: none;
+}
+
+.log-text {
+	display: inline;
+}
+
+* {
+	outline: none;
+}
+`,
+	init_ui = (title, footer, array) => {
+		var con = add_ele('div', document.body, { className: 'con' }),
+			titlebar = add_ele('div', con, { innerHTML: title, className: 'bar bar-top' }),
+			main_border = add_ele('div', con, { className: 'main-border' }),
+			cons = add_ele('div', main_border, { className: 'cons' }),
+			sidebar_con = add_ele('div', cons, { className: 'sidebar-con' }),
+			style = add_ele('link', document.head, { rel: 'stylesheet', href: URL.createObjectURL(new window.Blob([ base_css ], { type: 'text/css' })) }),
+			tab_nodes = [],
+			process_controls = (control, tab, tab_button, tab_ele) => {
+				if(control.type == 'nested_menu'){
+					control.tab_ele = add_ele('div', cons, { className: 'content-con', style: 'display: none' });
+					
+					tab_nodes.push(control.tab_ele);
+					
+					control.val.forEach(controle => process_controls(controle, tab, tab_button, control.tab_ele));
+					
+					if(control.load)control.load(control.tab_ele);
+				}
+				
+				var content = tab_ele.appendChild(document.createElement('div')),
+					content_name = document.createElement('div'), // append after stuff
+					label_appended = false;
+				
+				content.className = 'content';
+				
+				control.interact = data => {
+					switch(control.type){
+						case'bool':
+							control.val_set(!control.val_get())
+							break
+						case'bool_rot':
+							control.aval = control.aval + 1
+							if(control.aval >= control.vals.length)control.aval = 0 // past length
+							control.val_set(control.vals[control.aval].val);
+							break
+						case'function':
+							control.val_get()();
+							break
+						case'function_inline':
+							control.val();
+							break
+						case'nested_menu':
+							tab_nodes.forEach(ele => ele.style.display = 'none');
+							control.tab_ele.removeAttribute('style');
+							break
+						case'textbox':
+							control.val_set(control.input.value.substr(0, control.max_length));
+							break
+					}
+					control.update();
+				};
+				
+				control.update = _ => {
+					switch(control.type){
+						case'bool':
+							control.button.className = 'control-button ' + !!control.val_get();
+							break
+						case'bool_rot':
+							content_name.innerHTML = control.name + ': ' + control.vals[control.aval].display;
+							break
+						case'text':
+							break
+						case'text-small':
+							content_name.style.border = 'none';
+							content_name.style['font-size'] = '12px';
+							content_name.style['padding-left'] = '8px';
+							break
+						case'text-medium':
+							content_name.style.border = 'none';
+							content_name.style['font-size'] = '13px';
+							content_name.style['padding-left'] = '8px';
+							break
+						case'text-bold':
+							content_name.style.border = 'none';
+							content_name.style['font-weight'] = '600';
+							content_name.style['padding-left'] = '8px';
+							break
+						case'text-small-bold':
+							content_name.style['font-size'] = '12px';
+							content_name.style['font-weight'] = '600';
+							content_name.style['padding-left'] = '8px';
+							break
+						case'textbox':
+							control.input.value = control.input.value.substr(0, control.max_length);
+							break
+					}
+				};
+				
+				if(control.key){
+					control.button = content.appendChild(document.createElement('div'));
+					control.button.addEventListener('click', control.interact);
+					control.button.className = 'control-button'
+					if(control.key != 'unset')control.button.innerHTML = '[' + control.key + ']'
+					else control.button.innerHTML = '[-]'
+				}
+				
+				
+				switch(control.type){
+					case'textbox':
+						
+						Object.assign(content.appendChild(content_name), {
+							className: 'control-label',
+							innerHTML: control.name,
+						});
+						
+						content_name.style.padding = '0px 10px';
+						content_name.style['border-left'] = 'none';
+						content_name.style['border-right'] = '2px solid #445';
+						
+						control.input = add_ele('input', content, { className: 'control-textbox', placeholder: control.placeholder, spellcheck: false, value: control.val_get() });
+						
+						// .style.display = 'none';
+						label_appended = true;
+						
+						control.input.addEventListener('input', control.interact);
+						
+						break
+					case'slider':
+						var movement = { tb: { value: false, } };
+						
+						movement.sd = { held: false, x: 0, y: 0 };
+						
+						var rtn = (number, unit) => (number / unit).toFixed() * unit,
+							update_slider = event => {
+								if(!movement.sd.held)return;
+								
+								var slider_box = control.slider.getBoundingClientRect(),
+									perc = (event.offsetX / control.slider.offsetWidth * 100).toFixed(2),
+									perc_rounded = rtn(perc, control.unit / 10).toFixed(2),
+									value = ((control.max_val / 100) * perc_rounded).toFixed(2);
+								
+								if(event.clientX <= slider_box.x){
+									value = 0;
+									perc_rounded = 0;
+								}else if(event.clientX >= slider_box.x + slider_box.width){
+									value = control.max_val;
+									perc_rounded = 100;
+								}
+								
+								if(perc_rounded <= 100 && value >= control.min_val){
+									control.slider_bg.style.width = perc_rounded + '%'
+									control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
+									
+									control.val_set(Number(value));
+								}
+							};
+						
+						control.slider = content.appendChild(document.createElement('div'));
+						control.slider_bg = control.slider.appendChild(document.createElement('div'));
+						control.slider.className = 'control-slider'
+						control.slider_bg.className = 'control-slider-bg'
+						
+						control.slider_bg.style.width = control.val_get() / control.max_val * 100 + '%'
+						control.slider.setAttribute('data', control.val_get());
+						
+						control.slider.addEventListener('mousedown', event=>{
+							movement.sd = { held: true, x: event.layerX, y: event.layerY }
+							update_slider(event);
+						});
+						
+						window.addEventListener('mouseup', _=> movement.sd.held = false );
+						
+						window.addEventListener('mousemove', event=> update_slider(event));
+						
+						break
+					case'bool_rot':
+						
+						control.vals.forEach((entry, index) =>{ if(entry.val == control.val_get())control.aval = index })
+						if(!control.aval)control.aval = 0
+						
+						break
+				}
+				
+				if(!label_appended){
+					content.appendChild(content_name);
+					content_name.className = 'control-label'
+					content_name.innerHTML = control.name;
+				}
+				
+				control.update();
+				
+				if(control.key && control.key != 'unset')cheat.keybinds.push({
+					code: !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase(),
+					interact: control.interact,
+				});
+			},
+			align_con = () => (con.style.top = (window.innerHeight / 2) - (con.getBoundingClientRect().height / 2) + 'px', con.style.left = '20px');
+		
+		window.addEventListener('keydown', event => {
+			cheat.inputs[event.code] = true;
+			
+			var keybind = cheat.keybinds.find(keybind => typeof keybind.code == 'string'
+					? keybind.code == event.code || keybind.code.replace('Digit', 'Numpad') == event.code
+					: keybind.code.some(keycode => keycode == event.code || keycode.replace('Digit', 'Numpad') == event.code));
+			
+			if(!keybind || event.repeat)return;
+			
+			keybind.interact(event); // call the keybind callback
+		});
+		
+		window.addEventListener('keyup', event => {
+			cheat.inputs[event.code] = false;
+		});
+		
+		cheat.keybinds.push({
+			code: ['KeyC', 'F1'],
+			interact: () => con.style.display = (values.ui_visible ^= 1) ? 'block' : 'none',
+		});
+		
+		array.forEach((tab, index) => {
+			var tab_button = sidebar_con.appendChild(document.createElement('div')),
+				tab_ele = cons.appendChild(document.createElement('div'));
+			
+			tab_nodes.push(tab_ele);
+			
+			tab_button.className = 'tab-button',
+			tab_ele.className = 'content-con';
+			if(index > 0)tab_ele.style.display = 'none';
+			
+			tab_button.addEventListener('click', () => (tab_nodes.forEach(ele => ele.style.display = 'none'), tab_ele.removeAttribute('style')));
+			
+			tab_button.innerHTML = tab.name;
+			
+			if(tab.load)tab.load(tab_ele);
+			
+			tab.contents.forEach(control => { try{
+				process_controls(control, tab, tab_button, tab_ele);
+			}catch(err){ console.error('Encountered error at %c' + control.name + ' (' + control.val + ')', 'color: #FFF', err) }});
+			
+			if(tab.bottom_text){
+				var bottom_text = tab_ele.appendChild(document.createElement('div'));
+				
+				bottom_text.className = 'tab-desc'
+				bottom_text.innerHTML = tab.bottom_text;
+			}
+		});
+		
+		add_ele('div', main_border, { className: 'bar', innerHTML: footer });
+		add_ele('div', titlebar, { className: 'ver', innerHTML: 'v' + values.version });
+		
+		// IMAGINE BEING FUCKING CHROME AND NEEDING TO WAIT A TICK TO GET HEIGHT
+		setTimeout(align_con);
+	};
+
+values.config = config = JSON.parse(JSON.stringify(values.oconfig));
 
 init();
 inject();
+
+cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Press [F1] or [C] to toggle menu', [{
+	name: 'Main',
+	contents: [{
+		name: 'Auto aim',
+		type: 'bool_rot',
+		val_get: _ => values.config.aim.status,
+		val_set: v => values.config.aim.status = v,
+		vals: [{
+			val: 'off',
+			display: 'Off',
+		},{
+			val: 'assist',
+			display: 'Assist',
+		},{
+			val: 'silent',
+			display: 'Silent',
+		},{
+			val: 'full',
+			display: 'Full',
+		}],
+		key: values.config.kb.aim || values.oconfig.kb.aim,
+	},{
+		name: 'Auto bhop',
+		type: 'bool_rot',
+		val_get: _ => values.config.game.bhop,
+		val_set: v => values.config.game.bhop = v,
+		vals: [{
+			val: 'off',
+			display: 'Off',
+		},{
+			val: 'keyjump',
+			display: 'Key jump',
+		},{
+			val: 'keyslide',
+			display: 'Key slide',
+		},{
+			val: 'autoslide',
+			display: 'Auto slide',
+		},{
+			val: 'autojump',
+			display: 'Auto jump',
+		}],
+		key: values.config.kb.bhop || values.oconfig.kb.bhop,
+	},{
+		name: 'ESP mode',
+		type: 'bool_rot',
+		val_get: _ => values.config.esp.status,
+		val_set: v => values.config.esp.status = v,
+		vals: [{
+			val: 'off',
+			display: 'Off',
+		},{
+			val: 'box',
+			display: 'Box',
+		},{
+			val: 'chams',
+			display: 'Chams',
+		},{
+			val: 'box_chams',
+			display: 'Box & chams',
+		},{
+			val: 'full',
+			display: 'Full',
+		}],
+		key: values.config.kb.esp || values.oconfig.kb.esp,
+	},{
+		name: 'Tracers',
+		type: 'bool',
+		val_get: _ => values.config.esp.tracers,
+		val_set: v => values.config.esp.tracers = v,
+		key: values.config.kb.tracers || values.oconfig.kb.tracers,
+	},{
+		name: 'Nametags',
+		type: 'bool',
+		val_get: _ => values.config.esp.nametags,
+		val_set: v => values.config.esp.nametags = v,
+		key: values.config.kb.nametags || values.oconfig.kb.nametags,
+	},{
+		name: 'Overlay',
+		type: 'bool',
+		val_get: _ => values.config.game.overlay,
+		val_set: v => values.config.game.overlay = v,
+		key: values.config.kb.overlay || values.oconfig.kb.overlay,
+	}],
+},{
+	name: 'Game',
+	contents: [{
+		name: 'You need to be signed in for the skin hack',
+		type: 'text-small',
+	},{
+		name: 'Skins',
+		type: 'bool',
+		val_get: _ => values.config.game.skins,
+		val_set: v => values.config.game.skins = v,
+		key: 'unset',
+	},{
+		name: 'Wireframe',
+		type: 'bool',
+		val_get: _ => values.config.game.wireframe,
+		val_set: v => values.config.game.wireframe = v,
+		key: 'unset',
+	},{
+		name: 'Auto respawn',
+		type: 'bool',
+		val_get: _ => values.config.game.auto_respawn,
+		val_set: v => values.config.game.auto_respawn = v,
+		key: 'unset',
+	},{
+		name: 'Thirdperson',
+		type: 'bool',
+		val_get: _ => values.config.game.thirdperson,
+		val_set: v => values.config.game.thirdperson = v,
+		key: 'unset',
+	}],
+},{
+	name: 'Aim',
+	contents: [{
+		name: 'Target sorting',
+		type: 'bool_rot',
+		val_get: _ => values.config.game.target_sorting,
+		val_set: v => values.config.game.target_sorting = v,
+		vals: [{
+			val: 'dist2d',
+			display: 'Distance (2D)',
+		},{
+			val: 'dist3d',
+			display: 'Distance (3D)',
+		},{
+			val: 'hp',
+			display: 'Health',
+		}],
+		key: 'unset',
+	},{
+		name: 'Smoothness',
+		type: 'slider',
+		val_get: _ => values.config.aim.smoothn,
+		val_set: v => values.config.aim.smoothn = v,
+		min_val: 0,
+		max_val: 50,
+		unit: 10,
+	},{
+		name: 'Smooth',
+		type: 'bool',
+		val_get: _ => values.config.aim.smooth,
+		val_set: v => values.config.aim.smooth = v,
+		key: 'unset',
+	},{
+		name: 'Triggerbot',
+		type: 'bool',
+		val_get: _ => values.config.aim.triggerbot,
+		val_set: v => values.config.aim.triggerbot = v,
+		key: 'unset',
+	},{
+		name: 'Auto reload',
+		type: 'bool',
+		val_get: _ => values.config.aim.auto_reload,
+		val_set: v => values.config.aim.auto_reload = v,
+		key: 'unset',
+	},{
+		name: 'Frustrum check',
+		type: 'bool',
+		val_get: _ => values.config.aim.frustrum_check,
+		val_set: v => values.config.aim.frustrum_check = v,
+		key: 'unset',
+	},{
+		name: 'Wallbangs',
+		type: 'bool',
+		val_get: _ => values.config.aim.wallbangs,
+		val_set: v => values.config.aim.wallbangs = v,
+		key: 'unset',
+	}],
+},{
+	name: 'Esp',
+	contents: [{
+		name: 'Minimap',
+		type: 'bool',
+		val_get: _ => values.config.esp.minimap,
+		val_set: v => values.config.esp.minimap = v,
+		key: 'unset',
+	},{
+		name: 'Health bars',
+		type: 'bool',
+		val_get: _ => values.config.esp.health_bars,
+		val_set: v => values.config.esp.health_bars = v,
+		key: 'unset',
+	},{
+		name: 'Walls',
+		type: 'bool',
+		val_get: _ => values.config.esp.walls,
+		val_set: v => values.config.esp.walls = v,
+		key: 'unset',
+	},{
+		name: 'Wall opacity',
+		type: 'slider',
+		val_get: _ => values.config.esp.wall_opacity,
+		val_set: v => values.config.esp.wall_opacity = v,
+		min_val: 0.1,
+		max_val: 1,
+		unit: 1,
+	}]
+},{
+	name: 'Keybinds',
+	contents: [{
+		name: 'Aim',
+		placeholder: 'Aim keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.aim,
+		val_set: v => (values.config.kb.aim = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'Bhop',
+		placeholder: 'Bhop keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.bhop,
+		val_set: v => (values.config.kb.bhop = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'ESP',
+		placeholder: 'ESP keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.esp,
+		val_set: v => (values.config.kb.esp = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'Tracers',
+		placeholder: 'Tracers keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.tracers,
+		val_set: v => (values.config.kb.tracers = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'Overlay',
+		placeholder: 'Overlay keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.overlay,
+		val_set: v => (values.config.kb.overlay = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'ASAP toggle',
+		placeholder: 'ASAP toggle keybind',
+		type: 'textbox',
+		max_length: 1,
+		val_get: _ => values.config.kb.disable_settings,
+		val_set: v => (values.config.kb.disable_settings = v, electron.ipcRenderer.send('reload_cheat')),
+	},{
+		name: 'ASAP toggle',
+		type: 'function_inline',
+		val(){
+			values.config.aim.status = values.oconfig.aim.status;
+			values.config.game.bhop = values.oconfig.game.bhop;
+			values.config.esp.status = values.oconfig.esp.status;
+			values.config.esp.tracers = values.oconfig.esp.tracers;
+			values.config.esp.nametags = values.oconfig.esp.nametags;
+			values.config.esp.minimap = values.oconfig.esp.minimap;
+			values.config.esp.walls = values.oconfig.esp.walls;
+			values.config.esp.health_bars = values.oconfig.esp.health_bars;
+			values.config.game.overlay = values.oconfig.game.overlay;
+			values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
+			values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
+			
+			// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
+			
+			electron.ipcRenderer.send('reload_cheat');
+		},
+		key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
+	},{
+		name: 'Reset settings',
+		type: 'function_inline',
+		val: _ => (values.config = Object.assign({}, values.oconfig), electron.ipcRenderer.send('reload_cheat')),
+		key: 'unset',
+	}],
+}]));
+
+})();

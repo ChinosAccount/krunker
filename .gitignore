@@ -1,7 +1,6 @@
-/src/node_modules
-/src/package-lock.json
-/src/app/*.jsc
-/src/dist*
-/package-lock.json
+/client/src/node_modules
+/client/src/package-lock.json
+/client/src/app/*.jsc
+/client/src/dist*
+/client/package-lock.json
 .DS_Store
-*.asar

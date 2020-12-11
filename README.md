@@ -1,6 +1,8 @@
-# sploit-client
+# sploit
 
 [consider checking out skids github](https://github.com/skidlamer/)
+
+# client
 
 ## setting up
 
@@ -20,7 +22,7 @@ modify package.json build options as needed and run the build batch file like su
 
 ## resources
 
-### we dont just guess how the game works 😆
+# we dont just guess how the game works 😆
 
 #### [root folder](https://mega.nz/folder/3dVUUBZQ#gbn1N9Obk6HYReg2Z8p-ZQ)
 

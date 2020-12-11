@@ -1,0 +1,1 @@
+chrome.webRequest.onBeforeRequest.addListener(details => new URL(details.url).pathname == '/libs/howler.min.js' ? { redirectUrl: chrome.runtime.getURL('js/sploit.js') } : null, { urls: ['https://krunker.io/libs/*' ] },[ 'blocking' ]);
