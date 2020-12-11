@@ -1023,6 +1023,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 .main-border {
 	display: flex;
 	flex-direction: column;
+	background: #112;
 	height: 100%;
 	border: 2px solid #eee;
 	border-top: none;
@@ -1234,16 +1235,20 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 }
 `,
 	init_ui = (title, footer, array) => {
-		var con = add_ele('div', document.body, { className: 'con' }),
-			titlebar = add_ele('div', con, { innerHTML: title, className: 'bar bar-top' }),
-			main_border = add_ele('div', con, { className: 'main-border' }),
-			cons = add_ele('div', main_border, { className: 'cons' }),
-			sidebar_con = add_ele('div', cons, { className: 'sidebar-con' }),
+		var div = cheat.rnds.div + '-' + cheat.rnds.div1;
+		
+		customElements.define(div, class extends HTMLDivElement {}, { extends: 'div' });
+		
+		var con = add_ele(div, document.body, { className: 'con' }),
+			titlebar = add_ele(div, con, { innerHTML: title, className: 'bar bar-top' }),
+			main_border = add_ele(div, con, { className: 'main-border' }),
+			cons = add_ele(div, main_border, { className: 'cons' }),
+			sidebar_con = add_ele(div, cons, { className: 'sidebar-con' }),
 			style = add_ele('link', document.head, { rel: 'stylesheet', href: URL.createObjectURL(new window.Blob([ base_css ], { type: 'text/css' })) }),
 			tab_nodes = [],
 			process_controls = (control, tab, tab_button, tab_ele) => {
 				if(control.type == 'nested_menu'){
-					control.tab_ele = add_ele('div', cons, { className: 'content-con', style: 'display: none' });
+					control.tab_ele = add_ele(div, cons, { className: 'content-con', style: 'display: none' });
 					
 					tab_nodes.push(control.tab_ele);
 					
@@ -1252,11 +1257,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					if(control.load)control.load(control.tab_ele);
 				}
 				
-				var content = tab_ele.appendChild(document.createElement('div')),
-					content_name = document.createElement('div'), // append after stuff
+				var content = add_ele(div, tab_ele, {
+						className: 'content',
+					}),
+					content_name = document.createElement(div), // append after stuff
 					label_appended = false;
-				
-				content.className = 'content';
 				
 				control.interact = data => {
 					switch(control.type){
@@ -1322,9 +1327,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				};
 				
 				if(control.key){
-					control.button = content.appendChild(document.createElement('div'));
+					control.button = add_ele(div, content, {
+						className: 'control-button',
+					});
 					control.button.addEventListener('click', control.interact);
-					control.button.className = 'control-button'
+					
 					if(control.key != 'unset')control.button.innerHTML = '[' + control.key + ']'
 					else control.button.innerHTML = '[-]'
 				}
@@ -1443,14 +1450,15 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		});
 		
 		array.forEach((tab, index) => {
-			var tab_button = sidebar_con.appendChild(document.createElement('div')),
-				tab_ele = cons.appendChild(document.createElement('div'));
+			var tab_button = add_ele(div, sidebar_con, {
+					className: 'tab-button',
+				}),
+				tab_ele = add_ele(div, cons, {
+					className: 'content-con',
+					style: index > 0 ? 'display:none' : '',
+				});
 			
 			tab_nodes.push(tab_ele);
-			
-			tab_button.className = 'tab-button',
-			tab_ele.className = 'content-con';
-			if(index > 0)tab_ele.style.display = 'none';
 			
 			tab_button.addEventListener('click', () => (tab_nodes.forEach(ele => ele.style.display = 'none'), tab_ele.removeAttribute('style')));
 			
@@ -1470,8 +1478,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 			}
 		});
 		
-		add_ele('div', main_border, { className: 'bar', innerHTML: footer });
-		add_ele('div', titlebar, { className: 'ver', innerHTML: 'v' + values.version });
+		add_ele(div, main_border, { className: 'bar', innerHTML: footer });
+		add_ele(div, titlebar, { className: 'ver', innerHTML: 'v' + values.version });
 		
 		// IMAGINE BEING FUCKING CHROME AND NEEDING TO WAIT A TICK TO GET HEIGHT
 		setTimeout(align_con);
