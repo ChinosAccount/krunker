@@ -938,7 +938,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		});
 		
 		// REMOVE LATER
-		window.cheese = cheat;
+		// window.cheese = cheat;
 		
 		// pass storage object to game
 		cheat.patches.set(/^/, '((ssd, Proxy) => { return ');
