@@ -1011,7 +1011,7 @@ ${div} {
 	position: absolute;
 	display: flex;
 	width: 400px;
-	height: 350px;
+	height: 370px;
 	background: #112;
 	border: none;
 	flex-direction: column;
@@ -1744,6 +1744,16 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 		max_val: 1,
 		unit: 1,
 	}]
+},{
+	name: 'Settings',
+	contents: [{
+		name: 'Join the Discord',
+		type: 'function_inline',
+		key: 'unset',
+		val(){
+			location.href = 'https://vibedivide.github.io/';
+		},
+	}],
 },{
 	name: 'Keybinds',
 	contents: [{
