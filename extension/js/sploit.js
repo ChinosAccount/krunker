@@ -1,6 +1,7 @@
 (() => {
 
-var n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
+var post_message = window.postMessage,
+	n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
 		style: 'display:none',
 	}).contentWindow,
 	add = Symbol(),
@@ -106,7 +107,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					return target[prop];
 				}
 			}),
-			object_list: n.Object.keys(window).filter(label => window[label] && typeof window[label] == 'function' && String(window[label]) == 'function ' + label + '() { [native code] }'),
+			/* see sploit/scripts/get-objects.js */
+			object_list: ["Object","Function","Array","Number","parseFloat","parseInt","Boolean","String","Symbol","Date","Promise","RegExp","Error","ReferenceError","SyntaxError","TypeError","URIError","globalThis","JSON","Math","console","Intl","ArrayBuffer","Uint8ClampedArray","BigUint64Array","BigInt64Array","DataView","BigInt","WeakMap","WeakSet","Proxy","Reflect","decodeURI","decodeURIComponent","encodeURI","encodeURIComponent","escape","unescape","eval","isFinite","isNaN","SharedArrayBuffer","Atomics","AggregateError","FinalizationRegistry","WeakRef"],
 			vars_not_found: [],
 			vars: {},
 			materials_esp: new Proxy({}, {
@@ -213,7 +215,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				try{ return n.Reflect.apply(n.CanvasRenderingContext2D.prototype[label], cheat.ctx, args) }catch(err){ cheat.err(err); return {} }
 			},
 			find_match: async () => {
-				if(cheat.finding_match)return;
+ 				if(cheat.finding_match)return;
 				cheat.finding_match = true;
 				
 				var new_match,
@@ -434,7 +436,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){
-							return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false;
+							// cheat.util.canSee(cheat.player, ent)
+							return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
 						},
 						get frustum(){ return ent[add].active && n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ]); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
@@ -752,7 +755,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
-				// ['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
+				['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
 				['didShoot', /--,\w+\['(\w+)']=!0x0/, 1],
 				['ammos', /\['length'];for\(\w+=0x0;\w+<\w+\['(\w+)']\['length']/, 1],
 				['weaponIndex', /\['weaponConfig']\[\w+]\['secondary']&&\(\w+\['(\w+)']==\w+/, 1],
@@ -886,6 +889,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					switch(data){
 						case'injected':
 							
+							post_message(JSON.stringify({ from: 'sploit', data: [ 'get_config' ] }), location.origin);
+							
 							cheat.log('injected to game');
 							
 							cheat.log('hiding: ' + cheat.objs.storage + '.' + cheat.rnds.storage, window[cheat.objs.storage][cheat.rnds.storage]);
@@ -970,7 +975,13 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		
 		return ret;
 	}),
-	base_css = `
+	init_ui = (title, footer, array) => {
+		var div = cheat.rnds.div + '-' + cheat.rnds.div1,
+			base_css = `
+${div} {
+	display: block;
+}
+
 .con {
 	z-index: 9000000;
 	position: absolute;
@@ -1233,9 +1244,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 * {
 	outline: none;
 }
-`,
-	init_ui = (title, footer, array) => {
-		var div = cheat.rnds.div + '-' + cheat.rnds.div1;
+`;
 		
 		customElements.define(div, class extends HTMLDivElement {}, { extends: 'div' });
 		
@@ -1426,7 +1435,26 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					interact: control.interact,
 				});
 			},
+			movement = { tb:{ value: false } },
 			align_con = () => (con.style.top = (window.innerHeight / 2) - (con.getBoundingClientRect().height / 2) + 'px', con.style.left = '20px');
+		
+		titlebar.addEventListener('mousedown', event => movement.tb = {
+			value: true,
+			x: event.x - Number(con.style.left.replace(/px$/, '')),
+			y: event.y - Number(con.style.top.replace(/px$/, '')),
+		});
+
+		document.addEventListener('mouseup', _=> movement.tb.value = false);
+
+		document.addEventListener('mousemove', event => {
+			if(movement.tb.value){
+				var x_inside = event.x - movement.tb.x + con.offsetWidth < window.innerWidth,
+					y_inside = event.y - movement.tb.y + con.offsetHeight < window.innerHeight;
+				// check if element will be outside of window
+				if(x_inside && event.x - movement.tb.x >= 0)con.style.left = event.x - movement.tb.x + 'px'
+				if(y_inside && event.y - movement.tb.y >= 0)con.style.top = event.y - movement.tb.y + 'px'
+			}
+		});
 		
 		window.addEventListener('keydown', event => {
 			cheat.inputs[event.code] = true;
@@ -1698,42 +1726,42 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.aim,
-		val_set: v => (values.config.kb.aim = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.aim = v, location.reload()),
 	},{
 		name: 'Bhop',
 		placeholder: 'Bhop keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.bhop,
-		val_set: v => (values.config.kb.bhop = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.bhop = v, location.reload()),
 	},{
 		name: 'ESP',
 		placeholder: 'ESP keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.esp,
-		val_set: v => (values.config.kb.esp = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.esp = v, location.reload()),
 	},{
 		name: 'Tracers',
 		placeholder: 'Tracers keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.tracers,
-		val_set: v => (values.config.kb.tracers = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.tracers = v, location.reload()),
 	},{
 		name: 'Overlay',
 		placeholder: 'Overlay keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.overlay,
-		val_set: v => (values.config.kb.overlay = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.overlay = v, location.reload()),
 	},{
 		name: 'ASAP toggle',
 		placeholder: 'ASAP toggle keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.disable_settings,
-		val_set: v => (values.config.kb.disable_settings = v, electron.ipcRenderer.send('reload_cheat')),
+		val_set: v => (values.config.kb.disable_settings = v, location.reload()),
 	},{
 		name: 'ASAP toggle',
 		type: 'function_inline',
@@ -1752,15 +1780,23 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			
 			// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
 			
-			electron.ipcRenderer.send('reload_cheat');
+			location.reload();
 		},
 		key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
 	},{
 		name: 'Reset settings',
 		type: 'function_inline',
-		val: _ => (values.config = Object.assign({}, values.oconfig), electron.ipcRenderer.send('reload_cheat')),
+		val: _ => (values.config = Object.assign({}, values.oconfig), location.reload()),
 		key: 'unset',
 	}],
 }]));
+
+window.addEventListener('message', data => {
+	try{ data = JSON.parse(data.data); }catch(err){ return null; };
+	
+	if(Array.isArray(data) || data.from != 'sploit')return;
+	
+	console.log(data);
+});
 
 })();

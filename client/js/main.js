@@ -34,8 +34,6 @@ var fs = require('fs'),
 					},
 					keybind = keybinds.find(keybind => keybind.type == nevent.type && keybind.key.includes(nevent.code));
 				
-				// console.log(event, nevent);
-				
 				if(conf.pass_inputs){
 					if(wins.sploit)wins.sploit.webContents.send(nevent.type, nevent);
 					if(wins.game)wins.game.webContents.send(nevent.type, nevent);
