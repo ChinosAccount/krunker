@@ -1,7 +1,6 @@
 (() => {
 
-var post_message = window.postMessage,
-	n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
+var n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
 		style: 'display:none',
 	}).contentWindow,
 	add = Symbol(),
@@ -71,6 +70,32 @@ var post_message = window.postMessage,
 	},
 	init = () => {
 		cheat = {
+			wrap(str){
+				return JSON.stringify([ str ]).slice(1, -1);
+			},
+			clone_obj(obj){
+				return JSON.parse(JSON.stringify(obj));
+			},
+			config_key: 'krk_custSops',
+			sync_config(action){
+				switch(action){
+					case'load':
+						
+						Object.assign(values.config, cheat.clone_obj(values.oconfig), JSON.parse(localStorage.getItem(cheat.config_key) || '{}'));
+						
+						break;
+					case'update':
+						
+						localStorage.setItem(cheat.config_key, JSON.stringify(config));
+						
+						break;
+					default:
+						
+						throw new TypeError('unknown action ' + cheat.wrap(action));
+						
+						break;
+				};
+			},
 			keybinds: [],
 			wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 				var interval = setInterval(() => {
@@ -889,8 +914,6 @@ var post_message = window.postMessage,
 					switch(data){
 						case'injected':
 							
-							post_message(JSON.stringify({ from: 'sploit', data: [ 'get_config' ] }), location.origin);
-							
 							cheat.log('injected to game');
 							
 							cheat.log('hiding: ' + cheat.objs.storage + '.' + cheat.rnds.storage, window[cheat.objs.storage][cheat.rnds.storage]);
@@ -1297,6 +1320,7 @@ ${div} {
 							break
 					}
 					control.update();
+					cheat.sync_config('update');
 				};
 				
 				control.update = _ => {
@@ -1393,6 +1417,7 @@ ${div} {
 									control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
 									
 									control.val_set(Number(value));
+									cheat.sync_config('update');
 								}
 							};
 						
@@ -1778,6 +1803,8 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
 			values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
 			
+			cheat.sync_config('update');
+			
 			// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
 			
 			location.reload();
@@ -1791,12 +1818,6 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 	}],
 }]));
 
-window.addEventListener('message', data => {
-	try{ data = JSON.parse(data.data); }catch(err){ return null; };
-	
-	if(Array.isArray(data) || data.from != 'sploit')return;
-	
-	console.log(data);
-});
+cheat.sync_config('load');
 
 })();
