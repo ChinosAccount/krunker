@@ -132,8 +132,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					return target[prop];
 				}
 			}),
-			/* see sploit/scripts/get-objects.js */
-			object_list: ["Object","Function","Array","Number","parseFloat","parseInt","Boolean","String","Symbol","Date","Promise","RegExp","Error","ReferenceError","SyntaxError","TypeError","URIError","globalThis","JSON","Math","console","Intl","ArrayBuffer","Uint8ClampedArray","BigUint64Array","BigInt64Array","DataView","BigInt","WeakMap","WeakSet","Proxy","Reflect","decodeURI","decodeURIComponent","encodeURI","encodeURIComponent","escape","unescape","eval","isFinite","isNaN","SharedArrayBuffer","Atomics","AggregateError","FinalizationRegistry","WeakRef"],
+			object_list: Object.getOwnPropertyNames(this).filter(key => !(/webkit/gi.test(key)) && typeof this[key] == 'function' && String(this[key]) == 'function ' + key + '() { [native code] }'),
 			vars_not_found: [],
 			vars: {},
 			materials_esp: new Proxy({}, {
@@ -297,7 +296,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						target = targets.sort((ent_1, ent_2) => ent_1[add].pos.distanceTo(ent_2) * (ent_1[add].frustum == ent_2[add].frustum ? 1 : 0.5) )[0];
 						break
 					case'hp':
-						target = targets.sort((ent_1, ent_2) => (ent_1.health - ent_2.health) * (ent_1.inFrustrum == ent_2[add].frustum ? 1 : 0.5) )[0];
+						target = targets.sort((ent_1, ent_2) => (ent_1.health - ent_2.health) * (ent_1[add].frustum == ent_2[add].frustum ? 1 : 0.5) )[0];
 						break
 					case'dist2d':
 					default:
@@ -462,9 +461,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){
 							// cheat.util.canSee(cheat.player, ent)
-							return ent[add].active && cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z) == null ? true : false;
+							// cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z)
+							return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false;
 						},
-						get frustum(){ return ent[add].active && n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ]); },
+						// n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ])
+						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -780,7 +781,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				['pchObjc', /0x0,this\['(\w+)']=new \w+\['Object3D']\(\),this/, 1],
 				['aimVal', /this\['(\w+)']-=0x1\/\(this\['weapon']\['aimSpd']/, 1],
 				['crouchVal', /this\['(\w+)']\+=\w\['crouchSpd']\*\w+,0x1<=this\['\w+']/, 1],
-				['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
+				// ['canSee', /\w+\['(\w+)']\(\w+,\w+\['x'],\w+\['y'],\w+\['z']\)\)&&/, 1],
 				['didShoot', /--,\w+\['(\w+)']=!0x0/, 1],
 				['ammos', /\['length'];for\(\w+=0x0;\w+<\w+\['(\w+)']\['length']/, 1],
 				['weaponIndex', /\['weaponConfig']\[\w+]\['secondary']&&\(\w+\['(\w+)']==\w+/, 1],

@@ -1,23 +1,19 @@
 {
 	"name": "Shitsploit",
-	"version": "0.1",
+	"version": "1.0.5",
 	"description": "Krunker cheat loader",
 	"manifest_version": 2,
 	"permissions": [
 		"webRequest",
 		"webRequestBlocking",
-		"https://krunker.io/*"
+		"https://krunker.io/libs/*"
 	],
-	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
-	"browser_action": {
-		"default_icon": "src/64-icon.png"
-	},
 	"background": {
 		"scripts": ["js/bg.js"],
 		"persistent": true
 	},
 	"icons": {
-		"64": "src/64-icon.png"
+		"48": "src/icon.png"
 	},
 	"web_accessible_resources": [
 		"js/sploit.js"
