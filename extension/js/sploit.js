@@ -455,7 +455,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 							return !ent[cheat.vars.aimVal] || ent.weapon.noAim || cheat.target && cheat.target[add] && ent.weapon.melee && ent[add].pos.distanceTo(cheat.target[add].pos) <= 18;
 						},
 						get crouch(){ return ent[cheat.vars.crouchVal] },
-						get obj(){ return ent?.lowerBody?.parent?.parent },
+						get obj(){ return ent && ent.lowerBody && ent.lowerBody.parent && ent.lowerBody.parent ? ent.lowerBody.parent.parent : null },
 						// [cheat.vars.objInstances] },
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
