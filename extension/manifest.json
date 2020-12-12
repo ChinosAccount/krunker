@@ -1,11 +1,12 @@
 {
-	"name": "Shitsploit",
-	"version": "1.0.5",
+	"name": "Sploit",
+	"version": "1.0.4",
 	"description": "Krunker cheat loader",
 	"manifest_version": 2,
 	"permissions": [
 		"webRequest",
 		"webRequestBlocking",
+		"downloads",
 		"https://krunker.io/libs/*"
 	],
 	"background": {
