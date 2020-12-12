@@ -1,5 +1,5 @@
 var sploit = {
-		target: '/libs/howler.min.js',
+		target: 'https://krunker.io/libs/howler.min.js',
 		replace: chrome.runtime.getURL('js/sploit.js'),
 		manifest: chrome.runtime.getURL('manifest.json'),
 		updates: 'https://raw.githubusercontent.com/vibedivide/sploit/master/static/updates.json?ts=' + Date.now(),
@@ -18,6 +18,7 @@ var sploit = {
 		
 		if(!confirm('Sploit is out-of-date (' + updates.extension.version + ' available), do you wish to update?'))return;
 		
+		// add url to download queue
 		chrome.downloads.download({
 			url: updates.extension.install,
 			filename: 'sploit-ext.zip',
@@ -34,5 +35,6 @@ var sploit = {
 
 check_for_updates();
 
-chrome.webRequest.onBeforeRequest.addListener(details => ({ redirectUrl: new URL(details.url).pathname == sploit.target ? sploit.replace : null }), { urls: ['https://krunker.io/libs/*' ] }, [ 'blocking' ]);
+// check if any 
+chrome.webRequest.onBeforeRequest.addListener((details, url) => (url = new URL(details.url), { redirectUrl: url.origin + url.pathname == sploit.target ? sploit.replace : null }), { urls: ['https://krunker.io/libs/*' ] }, [ 'blocking' ]);
 

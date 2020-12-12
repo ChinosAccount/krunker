@@ -132,7 +132,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					return target[prop];
 				}
 			}),
-			object_list: Object.getOwnPropertyNames(this).filter(key => !(/webkit/gi.test(key)) && typeof this[key] == 'function' && String(this[key]) == 'function ' + key + '() { [native code] }'),
+			object_list: n.Object.getOwnPropertyNames(this).filter(key => !(/webkit/gi.test(key)) && typeof this[key] == 'function' && String(this[key]) == 'function ' + key + '() { [native code] }' && n.Object.getOwnPropertyDescriptor(this, key).configurable),
 			vars_not_found: [],
 			vars: {},
 			materials_esp: new Proxy({}, {
@@ -174,6 +174,13 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				}
 			},
 			util: {
+				containsPoint(frustum, point){
+					for(var ind in frustum.planes){
+						if(frustum.planes[ind].distanceToPoint(point) < 0)return false;
+					}
+					
+					return true;
+				},
 				canSee(player, target, offset = 0){
 					if(!player)return false;
 					
@@ -189,11 +196,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					for(var ind in cheat.game.map.manager.objects){
 						var obj = cheat.game.map.manager.objects[ind];
 						
-						if(
-							!obj.noShoot &&
-							obj.active &&
-							(!obj.transparent || obj.penetrable && cheat.player.weapon.pierce)
-						){
+						if(!obj.noShoot && obj.active && (!obj.transparent || obj.penetrable && cheat.player.weapon.pierce)){
 							var in_rect = cheat.util.lineInRect(player.x, player.z, height, ad, ae, af, obj.x - Math.max(0, obj.width - offset), obj.z - Math.max(0, obj.length - offset), obj.y - Math.max(0, obj.height - offset), obj.x + Math.max(0, obj.width - offset), obj.z + Math.max(0, obj.length - offset), obj.y + Math.max(0, obj.height - offset));
 							
 							if(in_rect && 1 > in_rect)return in_rect;
@@ -459,24 +462,15 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						// [cheat.vars.objInstances] },
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
-						get canSee(){
-							// cheat.util.canSee(cheat.player, ent)
-							// cheat.game[cheat.vars.canSee](cheat.player, ent.x, ent.y, ent.z)
-							return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false;
-						},
-						// n.Reflect.apply(cheat.three.Frustum.prototype.containsPoint, cheat.world.frustum, [ ent[add].pos ])
-						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
+						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
+						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
 						risk: ent.isDev || ent.isMod || ent.isMapMod || ent.canGlobalKick || ent.canViewReports || ent.partnerApp || ent.canVerify || ent.canTeleport || ent.isKPDMode || ent.level >= 30,
 						is_you: ent[cheat.vars.isYou],
-						get inview(){
-							return ent[cheat.vars.inView];
-						},
-						set inview(v){
-							ent[cheat.vars.inView] = v;
-						},
+						get inview(){ return ent[cheat.vars.inView]; },
+						set inview(v){ return ent[cheat.vars.inView] = v; },
 					}
 					
 					if(!ent[add].active)return;
@@ -942,6 +936,9 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 			
 			cheat.raycaster = new cheat.three.Raycaster();
 		});
+		
+		// REMOVE LATER
+		window.cheese = cheat;
 		
 		// pass storage object to game
 		cheat.patches.set(/^/, '((ssd, Proxy) => { return ');
