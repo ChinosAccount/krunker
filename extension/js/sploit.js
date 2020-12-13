@@ -50,7 +50,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 			},
 		},
 		consts: {
-			ss_dev: true,
+			ss_dev: false,
 		},
 	},
 	ui = {
