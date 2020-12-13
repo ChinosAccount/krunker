@@ -1513,7 +1513,7 @@ ${div} {
 		
 		cheat.keybinds.push({
 			code: ['KeyC', 'F1'],
-			interact: () => {
+			interact(){
 				event.preventDefault();
 				con.style.display = (values.ui_visible ^= 1) ? 'block' : 'none';
 			},
