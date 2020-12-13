@@ -805,8 +805,6 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				mod(__webpack_require__){
 					var vals = Object.values(__webpack_require__.c);
 					
-					console.log(__webpack_require__);
-					
 					n.Object.entries({
 						// util: ['hexToRGB', 'keyboardMap'],
 						gconfig: [ 'isNode', 'isComp', 'isProd' ],
