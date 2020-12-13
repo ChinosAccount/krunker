@@ -6,7 +6,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 	add = Symbol(),
 	add_ele = (node_name, parent, attributes) => Object.assign(parent.appendChild(document.createElement(node_name)), attributes),
 	values = {
-		version: '1.0.5',
+		version: '1.0.6',
 		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
 		ui_visible: true,
 		oconfig: {
