@@ -470,7 +470,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
-						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
+						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
