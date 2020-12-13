@@ -153,15 +153,24 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					return target[prop];
 				},
 			}),
+			regions: {
+				SYD: 'au-syd',
+				TOK: 'jb-hnd',
+				MIA: 'us-fl',
+				SV: 'us-ca-sv',
+				FRA: 'de-fra',
+				SIN: 'sgp',
+				NY: 'us-nj',
+			},
 			key_press: (keycode, keyname, keycode2, keyud) => document.dispatchEvent(new KeyboardEvent(keyud,{altKey:false,bubbles:true,cancelBubble:false,cancelable:true,charCode:0,code:keyname,composed:true,ctrlKey:false,currentTarget:null,defaultPrevented:true,detail:0,eventPhase:0,explicitOriginalTarget:document.body,isComposing:false,isTrusted:true,key:keyname,keyCode:keycode,layerX:0,layerY:0,location:0,metaKey:false,originalTarget:document.body,rangeOffset:0,rangeParent:null,repeat:false,returnValue:false,shiftKey:false,srcElement:document.body,target:document.body,timeStamp:Date.now(),type:keyud,view:parent,which:keycode})),
 			log(...args){
 				if(values.consts.ss_dev)console.log('%cShitsploit', 'background: #27F; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
-				else console.log('%cDEBUG', 'background: #F72; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', ...args);
+				
 				return true;
 			},
 			err(...args){
 				if(values.consts.ss_dev)console.error('%cShitsploit', 'background: #F22; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', '\n', ...args);
-				else console.error('%cDEBUG', 'background: #F62; color: white; border-radius: 3px; padding: 3px 2px; font-weight: 600', '\n', ...args);
+				
 				return true;
 			},
 			wrld2scrn(pos, aY = 0){
@@ -253,25 +262,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				cheat.finding_match = true;
 				
 				var new_match,
-					region = ({
-						SYD: 'au-syd',
-						TOK: 'jb-hnd',
-						MIA: 'us-fl',
-						SV: 'us-ca-sv',
-						FRA: 'de-fra',
-						SIN: 'sgp',
-						NY: 'us-nj',
-					})[('' + window.location.search).match(/\?game=(\w+)/)[1]],
-					data = await fetch('https://matchmaker.krunker.io/game-list?hostname=' + window.location.host, { headers: { 'user-agent': navigator.userAgent } }),
-					body = await data.text();
-				
-				try{
-					data = JSON.parse(body);
-				}catch(err){
-					data.error = err
-				}
-				
-				if(data.error)return cheat.err(data, body, data.error);
+					region = cheat.regions[new URLSearchParams(location.search).get('game')],
+					data = await fetch('https://matchmaker.krunker.io/game-list?hostname=' + window.location.host).then(res => res.json());
 				
 				new_match = data.games.map(([ match_id, match_region, match_players, match_max_players, gamemode ]) => ({
 					id: match_id,
@@ -283,9 +275,9 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				.sort((prev_match, match) => ((match.players >= 6 ? 4 : match.players) / match.max_players) * 100 - ((prev_match.players >= 6 ? 4 : prev_match.players) / prev_match.max_players) * 100)
 				.find(match => !match.gamemode.custom && match.region == region && (match.players <= match.max_players - 2 || match.players <= match.max_players - 1));
 				
-				return new_match ? window.location.href = 'https://krunker.io?game=' +  new_match.id : 'could not find match';
+				location.href = 'https://krunker.io/?game=' +  new_match.id;
 			},
-			process_interval: async () => { // run every 1000 ms
+			process_interval(){ // run every 1000 ms
 				if(!document.querySelector('#instructions'))return;
 				
 				var intxt = document.querySelector('#instructions').textContent;
@@ -316,7 +308,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				
 				return target;
 			},
-			procInputs(data){
+			procInputs(data, ...args){
 				if(!cheat.controls || !cheat.player || !cheat.player[add])return;
 				
 				var keys = {frame: 0, delta: 1, xdir: 2, ydir: 3, moveDir: 4, shoot: 5, scope: 6, jump: 7, reload: 8, crouch: 9, weaponScroll: 10, weaponSwap: 11, moveLock: 12},
@@ -423,20 +415,20 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 							break
 					}
 				}
+				
+				this[cheat.syms.procInputs](data, ...args);
 			},
 			process(){ try{
 				if(!cheat.game)return;
 				
-				if(!cheat.game.config.deltaMlt_hooked){
-					cheat.game.config.deltaMlt_hooked = 1;
+				if(!cheat.game.config[cheat.syms.hooked]){
+					cheat.game.config[cheat.syms.hooked] = 1;
 					
-					setTimeout(() => {
-						var orig_delta = cheat.game.config.deltaMlt || 1;
-						Object.defineProperty(cheat.game.config, 'deltaMlt', {
-							get: _ => orig_delta + (cheat.game.config.inc_deltaMlt ? cheat.game.config.inc_deltaMlt : 0),
-							set: n => orig_delta = n,
-						});
-					}, 1000);
+					var orig_delta = cheat.game.config.deltaMlt || 1;
+					Object.defineProperty(cheat.game.config, 'deltaMlt', {
+						get: _ => orig_delta + (cheat.game.config.inc_deltaMlt ? cheat.game.config.inc_deltaMlt : 0),
+						set: n => orig_delta = n,
+					});
 				}
 				
 				cheat.controls[cheat.vars.pchObjc].rotation.x -= cheat.inputs.ArrowDown ? 0.006 : 0;
@@ -444,8 +436,6 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				
 				cheat.controls.object.rotation.y -= cheat.inputs.ArrowRight ? 0.00675 : 0;
 				cheat.controls.object.rotation.y += cheat.inputs.ArrowLeft ? 0.00675 : 0;
-				
-				cheat.controls.idleTimer = 0;
 				
 				cheat.game.config.thirdPerson = config.game.thirdperson ? true : false;
 				
@@ -470,7 +460,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
-						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
+						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -790,49 +780,38 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				['yVel', /this\['y']\+=this\['(\w+)']\*\w+\['map']\['config']\['speedY']/, 1],
 				['mouseDownR', /this\['(\w+)']=0x0,this\['keys']=/, 1], 
 				['recoilAnimY', /this\['reward']=0x0,this\['\w+']=0x0,this\['(\w+)']=0x0,this\['\w+']=0x0,this\['\w+']=0x1,this\['slideLegV']/, 1],
+				['procInputs', /this\['(\w+)']=function\(\w+,\w+,\w+,\w+\){this\['recon']/, 1],
 			],
 			patches: new Map([
-				// wallbangs
-				// [/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
-				
-				//[/!(\w+)\['transparent']/, "(ssd.config.aim.wallbangs ? !$1.penetrable : !$1.transparent)"],	
-					
-				// Anticheat Skid	
-				[/windows\['length'\]>\d+.*?0x25/, '0x25'],
-				
 				// get vars
 				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
 				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
-				[/(this\['\w+']=function\(\w+,\w+,\w+,\w+\){)(this\['recon'])/, '$1 { ssd.procInputs(...arguments) }; $2'],
 				
-				// have a proper interval for rendering
+				// hijack rendering
 				[/requestAnimFrame\(/g, 'ssd.frame(requestAnimFrame, '],
 				[/requestAnimFrameF\(/g, 'ssd.frame(requestAnimFrameF, '],
 				
-				[/function \w+\(\w+\){if\(\w+\[\w+]\)return \w+\[\w+]\['exp/, 'ssd.__webpack_require__ = c; $&'],
-				
 				[/^/, 'ssd.info("injected"), '],
 				
-				[/(\w+)\['skins'](?!=)/g, 'ssd.skin($1)'],
+				[/(\w+)\(\1\['\w+']=0x\d+\);/, '$&; ssd.mod($1)'],
 				
-				[/aHolder\['style']\['display']/, 'aHolder.style.piss'],
+				[/(\w+)\['skins'](?!=)/g, 'ssd.skin($1)'],
 			]),
 			storage: {
-				skins: [...new Uint8Array(5e2)].map((e, i) => ({ ind: i, cnt: 1 })),
+				skins: [...new Uint8Array(2581)].map((e, i) => ({ ind: i, cnt: 1 })),
 				get config(){ return config },
 				get player(){ return cheat.player || { weapon: {} } },
 				get target(){ return cheat.target || {} },
-				set __webpack_require__(nv){
-					cheat.__webpack_require__ = nv;
+				mod(__webpack_require__){
+					var vals = Object.values(__webpack_require__.c);
 					
-					cheat.wf(() => cheat.__webpack_require__.c).then(exports => n.Object.entries({
+					console.log(__webpack_require__);
+					
+					n.Object.entries({
 						// util: ['hexToRGB', 'keyboardMap'],
 						gconfig: [ 'isNode', 'isComp', 'isProd' ],
-						ws: ['ahNum', 'connected', 'socketId', 'send', 'trackPacketStats'],
-						overlay: ['render', 'canvas'],
-						colors: ['challLvl', 'getChallCol', 'premium', 'partner'],
-						shop: ['purchases', 'previews', 'premium', 'events'],
-					}).forEach(([ label, entries ]) => Object.values(exports).filter(mod => mod && mod.exports).forEach(mod => (!entries.some(entry => !n.Reflect.apply(n.Object.prototype.hasOwnProperty, mod.exports, [ entry ])) && (cheat[label] = mod.exports)))));
+						ws: [ 'connected', 'send', 'trackPacketStats' ],
+					}).forEach(([ label, entries ]) => vals.forEach(mod => !entries.some(entry => !n.Reflect.apply(n.Object.prototype.hasOwnProperty, mod.exports, [ entry ])) && (cheat[label] = mod.exports)));
 				},
 				set game(nv){
 					cheat.game = nv;
@@ -847,9 +826,15 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					cheat.player = cheat.game ? cheat.game.players.list.find(player => player[cheat.vars.isYou]) : null;
 					cheat.controls = cheat.game ? cheat.game.controls : null;
 					
+					if(cheat.player && cheat.player[cheat.vars.procInputs] && !cheat.player[cheat.syms.procInputs]){
+						cheat.player[cheat.syms.procInputs] = cheat.player[cheat.vars.procInputs];
+						
+						cheat.player[cheat.vars.procInputs] = cheat.procInputs;
+					}
+					
 					if(cheat.world)cheat.world.scene.onBeforeRender = cheat.process;
 					
-					if(cheat.ws && !cheat.ws[cheat.syms.hooked]){
+					if(cheat.ws && !cheat.ws[cheat.syms.hooked] && cheat.ws.send){
 						cheat.ws[cheat.syms.hooked] = true;
 						
 						cheat.ws.send = uhook(cheat.ws.send, (target, that, [label, ...data]) => {
@@ -950,15 +935,13 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		});
 		
 		// REMOVE LATER
-		// window.cheese = cheat;
+		window.cheese = cheat;
 		
 		// pass storage object to game
 		cheat.patches.set(/^/, '((ssd, Proxy) => { return ');
 		cheat.patches.set(/$/g, '})(' + cheat.objs.storage + '.' + cheat.rnds.storage + '(), ' + cheat.objs.storage + '.' + cheat.rnds.storage + '().proxy)');
 		
-		setInterval(cheat.process_interval, 1000);
-		
-		cheat.storage.procInputs = cheat.procInputs;
+		setInterval(cheat.process_interval, 500);
 		
 		// clear all inputs when window is not focused
 		window.addEventListener('blur', () => cheat.inputs = []);
