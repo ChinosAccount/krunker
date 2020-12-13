@@ -35,6 +35,5 @@ var sploit = {
 
 check_for_updates();
 
-// check if any 
+// replace script defined above with our injection
 chrome.webRequest.onBeforeRequest.addListener((details, url) => (url = new URL(details.url), { redirectUrl: url.origin + url.pathname == sploit.target ? sploit.replace : null }), { urls: ['https://krunker.io/libs/*' ] }, [ 'blocking' ]);
-

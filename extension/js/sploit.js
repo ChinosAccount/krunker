@@ -53,6 +53,12 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 			ss_dev: true,
 		},
 	},
+	ui = {
+		control_updates: [],
+		reload(){
+			ui.control_updates.forEach(val => val());
+		},
+	},
 	cheat = {},
 	config = {},
 	uhook = (orig_func, handler) => {
@@ -196,7 +202,8 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					for(var ind in cheat.game.map.manager.objects){
 						var obj = cheat.game.map.manager.objects[ind];
 						
-						if(!obj.noShoot && obj.active && (!obj.transparent || obj.penetrable && cheat.player.weapon.pierce)){
+						if(!obj.noShoot && obj.active && (config.aim.wallbangs ? !obj.penetrable : !obj.transparent && cheat.player.weapon.pierce)){	
+
 							var in_rect = cheat.util.lineInRect(player.x, player.z, height, ad, ae, af, obj.x - Math.max(0, obj.width - offset), obj.z - Math.max(0, obj.length - offset), obj.y - Math.max(0, obj.height - offset), obj.x + Math.max(0, obj.width - offset), obj.z + Math.max(0, obj.length - offset), obj.y + Math.max(0, obj.height - offset));
 							
 							if(in_rect && 1 > in_rect)return in_rect;
@@ -788,6 +795,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				// wallbangs
 				// [/\['noShoot']&&(\w+)\['active']&&\(!\1\['transparent']\|\|(\w+)\)/, '.noShoot && $1.active && ($1.transparent || $2 || (ssd.config.aim.wallbangs && ssd.player && ssd.player.weapon) ? (!$1.penetrable || !ssd.player.weapon.pierce) : true)'],
 				
+				//[/!(\w+)\['transparent']/, "(ssd.config.aim.wallbangs ? !$1.penetrable : !$1.transparent)"],	
+					
+				// Anticheat Skid	
+				[/windows\['length'\]>\d+.*?0x25/, '0x25'],
+				
 				// get vars
 				[/(this\['moveObj']=func)/, 'ssd.game = this, $1'],
 				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
@@ -841,7 +853,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						cheat.ws[cheat.syms.hooked] = true;
 						
 						cheat.ws.send = uhook(cheat.ws.send, (target, that, [label, ...data]) => {
-							if(label == 'ent' && config.game.skins)cheat.skin_conf = {
+							if(label == 'en' && config.game.skins)cheat.skin_conf = {
 								weapon: data[0][2],
 								hat: data[0][3],
 								body: data[0][4],
@@ -1321,7 +1333,7 @@ ${div} {
 					cheat.sync_config('update');
 				};
 				
-				control.update = _ => {
+				control.update = () => {
 					switch(control.type){
 						case'bool':
 							control.button.className = 'control-button ' + !!control.val_get();
@@ -1356,6 +1368,8 @@ ${div} {
 							break
 					}
 				};
+				
+				ui.control_updates.push(control.update);
 				
 				if(control.key){
 					control.button = add_ele(div, content, {
@@ -1480,6 +1494,8 @@ ${div} {
 		});
 		
 		window.addEventListener('keydown', event => {
+			if(document.activeElement && document.activeElement.tagName == 'INPUT')return;
+			
 			cheat.inputs[event.code] = true;
 			
 			var keybind = cheat.keybinds.find(keybind => typeof keybind.code == 'string'
@@ -1497,7 +1513,10 @@ ${div} {
 		
 		cheat.keybinds.push({
 			code: ['KeyC', 'F1'],
-			interact: () => con.style.display = (values.ui_visible ^= 1) ? 'block' : 'none',
+			interact: () => {
+				event.preventDefault();
+				con.style.display = (values.ui_visible ^= 1) ? 'block' : 'none';
+			},
 		});
 		
 		array.forEach((tab, index) => {
@@ -1759,42 +1778,42 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.aim,
-		val_set: v => (values.config.kb.aim = v, location.reload()),
+		val_set: v => (values.config.kb.aim = v, ui.reload()),
 	},{
 		name: 'Bhop',
 		placeholder: 'Bhop keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.bhop,
-		val_set: v => (values.config.kb.bhop = v, location.reload()),
+		val_set: v => (values.config.kb.bhop = v, ui.reload()),
 	},{
 		name: 'ESP',
 		placeholder: 'ESP keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.esp,
-		val_set: v => (values.config.kb.esp = v, location.reload()),
+		val_set: v => (values.config.kb.esp = v, ui.reload()),
 	},{
 		name: 'Tracers',
 		placeholder: 'Tracers keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.tracers,
-		val_set: v => (values.config.kb.tracers = v, location.reload()),
+		val_set: v => (values.config.kb.tracers = v, ui.reload()),
 	},{
 		name: 'Overlay',
 		placeholder: 'Overlay keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.overlay,
-		val_set: v => (values.config.kb.overlay = v, location.reload()),
+		val_set: v => (values.config.kb.overlay = v, ui.reload()),
 	},{
 		name: 'ASAP toggle',
 		placeholder: 'ASAP toggle keybind',
 		type: 'textbox',
 		max_length: 1,
 		val_get: _ => values.config.kb.disable_settings,
-		val_set: v => (values.config.kb.disable_settings = v, location.reload()),
+		val_set: v => (values.config.kb.disable_settings = v, ui.reload()),
 	},{
 		name: 'ASAP toggle',
 		type: 'function_inline',
@@ -1815,13 +1834,13 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			
 			// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
 			
-			location.reload();
+			ui.reload();
 		},
 		key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
 	},{
 		name: 'Reset settings',
 		type: 'function_inline',
-		val: _ => (values.config = Object.assign({}, values.oconfig), location.reload()),
+		val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload()),
 		key: 'unset',
 	}],
 }]));
