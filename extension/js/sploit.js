@@ -475,7 +475,10 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					// we are at fastest tick so we can do this
 					if(ent[add].obj)ent[add].obj.visible = true;
 					
-					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? ent[add].frustum : ent[add].enemy ? ent[add].canSee : true;
+					var normal = ent[add].enemy ? ent[add].canSee : true;
+					
+					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? true : normal;
+						
 				});
 			}catch(err){ cheat.err('CAUGHT:', err) }},
 			render(){ try{ // rendering tasks
@@ -1356,6 +1359,8 @@ ${div} {
 							control.slider.setAttribute('data', Number(control.val_get().toString().substr(0, 10)));
 							break;
 					}
+					
+					cheat.sync_config('update');
 				};
 				
 				ui.control_updates.push(control.update);
