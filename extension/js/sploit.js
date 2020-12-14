@@ -460,7 +460,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
-						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
+						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -1349,7 +1349,7 @@ ${div} {
 							content_name.style['padding-left'] = '8px';
 							break;
 						case'textbox':
-							control.input.value = control.input.value.substr(0, control.max_length);
+							control.input.value = ('' + control.val_get()).substr(0, control.max_length);
 							break;
 						case'slider':
 							control.slider_bg.style.width = ((control.val_get() / control.max_val) * 100) + '%'
@@ -1456,8 +1456,8 @@ ${div} {
 				control.update();
 				
 				if(control.key && control.key != 'unset')cheat.keybinds.push({
-					code: !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase(),
-					interact: control.interact,
+					get code(){ return !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase() },
+					get interact(){ return control.interact; },
 				});
 			},
 			movement = { tb:{ value: false } },
@@ -1828,7 +1828,7 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 	},{
 		name: 'Reset settings',
 		type: 'function_inline',
-		val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload()),
+		val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload(), cheat.sync_config('update')),
 		key: 'unset',
 	}],
 }]));
