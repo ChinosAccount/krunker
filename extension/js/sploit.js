@@ -788,11 +788,12 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				[/(this\['backgroundScene']=)/, 'ssd.world = this, $1'],
 				
 				// hijack rendering
-				[/requestAnimFrame\(/g, 'ssd.frame(requestAnimFrame, '],
-				[/requestAnimFrameF\(/g, 'ssd.frame(requestAnimFrameF, '],
+				[/requestAnimFrame(F|)\(/g, 'ssd.frame(requestAnimFrame$1, '],
 				
+				//
 				[/^/, 'ssd.info("injected"), '],
 				
+				// get webpack modules
 				[/(\w+)\(\1\['\w+']=0x\d+\);/, '$&; ssd.mod($1)'],
 				
 				[/(\w+)\['skins'](?!=)/g, 'ssd.skin($1)'],
@@ -1146,6 +1147,7 @@ ${div} {
 	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
 	border: 1px solid #2B4194;
 	margin: auto 3px;
+	color: black;
 }
 
 .control-textbox:focus {
@@ -1315,38 +1317,44 @@ ${div} {
 				};
 				
 				control.update = () => {
+					if(control.button)control.button.innerHTML = '[' + (control.key == 'unset' ? '-' : control.key) + ']';
+					
 					switch(control.type){
 						case'bool':
 							control.button.className = 'control-button ' + !!control.val_get();
-							break
+							break;
 						case'bool_rot':
 							content_name.innerHTML = control.name + ': ' + control.vals[control.aval].display;
-							break
+							break;
 						case'text':
-							break
+							break;
 						case'text-small':
 							content_name.style.border = 'none';
 							content_name.style['font-size'] = '12px';
 							content_name.style['padding-left'] = '8px';
-							break
+							break;
 						case'text-medium':
 							content_name.style.border = 'none';
 							content_name.style['font-size'] = '13px';
 							content_name.style['padding-left'] = '8px';
-							break
+							break;
 						case'text-bold':
 							content_name.style.border = 'none';
 							content_name.style['font-weight'] = '600';
 							content_name.style['padding-left'] = '8px';
-							break
+							break;
 						case'text-small-bold':
 							content_name.style['font-size'] = '12px';
 							content_name.style['font-weight'] = '600';
 							content_name.style['padding-left'] = '8px';
-							break
+							break;
 						case'textbox':
 							control.input.value = control.input.value.substr(0, control.max_length);
-							break
+							break;
+						case'slider':
+							control.slider_bg.style.width = ((control.val_get() / control.max_val) * 100) + '%'
+							control.slider.setAttribute('data', Number(control.val_get().toString().substr(0, 10)));
+							break;
 					}
 				};
 				
@@ -1406,10 +1414,9 @@ ${div} {
 								}
 								
 								if(perc_rounded <= 100 && value >= control.min_val){
-									control.slider_bg.style.width = perc_rounded + '%'
-									control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
-									
 									control.val_set(Number(value));
+									control.update();
+									
 									cheat.sync_config('update');
 								}
 							};
@@ -1561,7 +1568,7 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			val: 'full',
 			display: 'Full',
 		}],
-		key: values.config.kb.aim || values.oconfig.kb.aim,
+		get key(){ return values.config.kb.aim || values.oconfig.kb.aim; },
 	},{
 		name: 'Auto bhop',
 		type: 'bool_rot',
@@ -1583,7 +1590,7 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			val: 'autojump',
 			display: 'Auto jump',
 		}],
-		key: values.config.kb.bhop || values.oconfig.kb.bhop,
+		get key(){ return values.config.kb.bhop || values.oconfig.kb.bhop; },
 	},{
 		name: 'ESP mode',
 		type: 'bool_rot',
@@ -1605,25 +1612,25 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			val: 'full',
 			display: 'Full',
 		}],
-		key: values.config.kb.esp || values.oconfig.kb.esp,
+		get key(){ return values.config.kb.esp || values.oconfig.kb.esp; },
 	},{
 		name: 'Tracers',
 		type: 'bool',
 		val_get: _ => values.config.esp.tracers,
 		val_set: v => values.config.esp.tracers = v,
-		key: values.config.kb.tracers || values.oconfig.kb.tracers,
+		get key(){ return values.config.kb.tracers || values.oconfig.kb.tracers; },
 	},{
 		name: 'Nametags',
 		type: 'bool',
 		val_get: _ => values.config.esp.nametags,
 		val_set: v => values.config.esp.nametags = v,
-		key: values.config.kb.nametags || values.oconfig.kb.nametags,
+		get key(){ return values.config.kb.nametags || values.oconfig.kb.nametags; },
 	},{
 		name: 'Overlay',
 		type: 'bool',
 		val_get: _ => values.config.game.overlay,
 		val_set: v => values.config.game.overlay = v,
-		key: values.config.kb.overlay || values.oconfig.kb.overlay,
+		get key(){ return values.config.kb.overlay || values.oconfig.kb.overlay; },
 	}],
 },{
 	name: 'Game',
@@ -1817,7 +1824,7 @@ cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Pres
 			
 			ui.reload();
 		},
-		key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
+		get key(){ return values.config.kb.disable_settings || values.oconfig.kb.disable_settings; },
 	},{
 		name: 'Reset settings',
 		type: 'function_inline',

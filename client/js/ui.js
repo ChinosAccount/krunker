@@ -16,6 +16,12 @@ var fs = require('fs'),
 			return ret
 		},
 	},
+	ui = {
+		control_updates: [],
+		reload(){
+			ui.control_updates.forEach(val => val());
+		},
+	},
 	values,
 	add_ele = (node_name, parent, attributes) => Object.assign(parent.appendChild(document.createElement(node_name)), attributes),
 	base_css = `
@@ -375,8 +381,14 @@ var main = async () => {
 							case'textbox':
 								control.input.value = control.input.value.substr(0, control.max_length);
 								break
+							case'slider':
+								control.slider_bg.style.width = perc_rounded + '%'
+								control.slider.setAttribute('data', Number(control.val_get().toString().substr(0,10)));
+								break
 						}
 					};
+					
+					ui.control_updates.push(control.update);
 					
 					if(control.key){
 						control.button = content.appendChild(document.createElement('div'));
@@ -430,10 +442,8 @@ var main = async () => {
 									}
 									
 									if(perc_rounded <= 100 && value >= control.min_val){
-										control.slider_bg.style.width = perc_rounded + '%'
-										control.slider.setAttribute('data', Number(value.toString().substr(0,10)));
-										
 										control.val_set(Number(value));
+										control.update();
 									}
 								};
 							
@@ -838,7 +848,7 @@ var main = async () => {
 					
 					electron.ipcRenderer.on('add_log', add_log);
 				}
-			}]
+			}],
 		},{
 			name: 'Keybinds',
 			contents: [{
@@ -847,42 +857,42 @@ var main = async () => {
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.aim,
-				val_set: v => (values.config.kb.aim = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.aim = v, ui.reload()),
 			},{
 				name: 'Bhop',
 				placeholder: 'Bhop keybind',
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.bhop,
-				val_set: v => (values.config.kb.bhop = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.bhop = v, ui.reload()),
 			},{
 				name: 'ESP',
 				placeholder: 'ESP keybind',
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.esp,
-				val_set: v => (values.config.kb.esp = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.esp = v, ui.reload()),
 			},{
 				name: 'Tracers',
 				placeholder: 'Tracers keybind',
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.tracers,
-				val_set: v => (values.config.kb.tracers = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.tracers = v, ui.reload()),
 			},{
 				name: 'Overlay',
 				placeholder: 'Overlay keybind',
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.overlay,
-				val_set: v => (values.config.kb.overlay = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.overlay = v, ui.reload()),
 			},{
 				name: 'ASAP toggle',
 				placeholder: 'ASAP toggle keybind',
 				type: 'textbox',
 				max_length: 1,
 				val_get: _ => values.config.kb.disable_settings,
-				val_set: v => (values.config.kb.disable_settings = v, electron.ipcRenderer.send('reload_cheat')),
+				val_set: v => (values.config.kb.disable_settings = v, ui.reload()),
 			},{
 				name: 'ASAP toggle',
 				type: 'function_inline',
@@ -899,15 +909,13 @@ var main = async () => {
 					values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
 					values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
 					
-					// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
-					
-					electron.ipcRenderer.send('reload_cheat');
+					ui.reload();
 				},
 				key: values.config.kb.disable_settings || values.oconfig.kb.disable_settings,
 			},{
 				name: 'Reset settings',
 				type: 'function_inline',
-				val: _ => (values.config = Object.assign({}, values.oconfig), electron.ipcRenderer.send('reload_cheat')),
+				val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload()),
 				key: 'unset',
 			}],
 		}]);
