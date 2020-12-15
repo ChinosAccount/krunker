@@ -1,5 +1,5 @@
 var sploit = {
-		target: 'https://krunker.io/libs/howler.min.js',
+		target: '/libs/howler.min.js',
 		replace: chrome.runtime.getURL('js/sploit.js'),
 		manifest: chrome.runtime.getURL('manifest.json'),
 		updates: 'https://raw.githubusercontent.com/vibedivide/sploit/master/static/updates.json?ts=' + Date.now(),
@@ -36,4 +36,8 @@ var sploit = {
 check_for_updates();
 
 // replace script defined above with our injection
-chrome.webRequest.onBeforeRequest.addListener((details, url) => (url = new URL(details.url), { redirectUrl: url.origin + url.pathname == sploit.target ? sploit.replace : null }), { urls: ['https://krunker.io/libs/*' ] }, [ 'blocking' ]);
+chrome.webRequest.onBeforeRequest.addListener((details, url) => (url = new URL(details.url), {
+	redirectUrl: url.host.endsWith('krunker.io') ?
+		url.pathname == sploit.target ? sploit.replace
+		: url.pathname.startsWith('/libs/sploit/') ? chrome.runtime.getURL(url.pathname.replace(/^\/libs\/sploit\//, '/js/')) : null: null
+}), { urls: [ 'https://krunker.io/libs/*', 'https://comp.krunker.io/libs/*' ] }, [ 'blocking' ]);

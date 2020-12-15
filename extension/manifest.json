@@ -7,7 +7,9 @@
 		"webRequest",
 		"webRequestBlocking",
 		"downloads",
-		"https://krunker.io/libs/*"
+		"tabs",
+		"https://krunker.io/libs/*",
+		"https://comp.krunker.io/libs/*"
 	],
 	"background": {
 		"scripts": ["js/bg.js"],
@@ -17,6 +19,6 @@
 		"48": "src/icon.png"
 	},
 	"web_accessible_resources": [
-		"js/sploit.js"
+		"js/*.js"
 	]
 }

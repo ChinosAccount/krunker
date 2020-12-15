@@ -1,14 +1,23 @@
 (() => {
 
-var n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
+var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res.text()).then(text => {
+		var args = {
+				exports: {},
+				module: { get exports(){ return args.exports; }, set exports(v){ return args.exports = v; }},
+				require: require,
+				process: { cwd(){ return '/'; }, },
+			};
+		
+		Reflect.apply(new Function(Object.keys(args), text + '\n//# sourceURL=' + mod), args.module, Object.values(args));
+		
+		resolve(args.exports);
+	}).catch(reject)),
+	n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
 		style: 'display:none',
 	}).contentWindow,
 	add = Symbol(),
-	add_ele = (node_name, parent, attributes) => Object.assign(parent.appendChild(document.createElement(node_name)), attributes),
 	values = {
 		version: '1.0.6',
-		useragent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69',
-		ui_visible: true,
 		oconfig: {
 			esp: {
 				status: 'off',
@@ -53,12 +62,6 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 			ss_dev: false,
 		},
 	},
-	ui = {
-		control_updates: [],
-		reload(){
-			ui.control_updates.forEach(val => val());
-		},
-	},
 	cheat = {},
 	config = {},
 	uhook = (orig_func, handler) => {
@@ -76,33 +79,6 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 	},
 	init = () => {
 		cheat = {
-			wrap(str){
-				return JSON.stringify([ str ]).slice(1, -1);
-			},
-			clone_obj(obj){
-				return JSON.parse(JSON.stringify(obj));
-			},
-			config_key: 'krk_custSops',
-			sync_config(action){
-				switch(action){
-					case'load':
-						
-						Object.assign(values.config, cheat.clone_obj(values.oconfig), JSON.parse(localStorage.getItem(cheat.config_key) || '{}'));
-						
-						break;
-					case'update':
-						
-						localStorage.setItem(cheat.config_key, JSON.stringify(config));
-						
-						break;
-					default:
-						
-						throw new TypeError('unknown action ' + cheat.wrap(action));
-						
-						break;
-				};
-			},
-			keybinds: [],
 			wf: (check, timeout = 5000) => new Promise((resolve, reject) => {
 				var interval = setInterval(() => {
 					var checked = check();
@@ -319,11 +295,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 				cheat.moving_camera = false;
 				
 				// skid bhop
-				if(config.game.bhop != 'off' && (cheat.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide')){
+				if(config.game.bhop != 'off' && (ui.inputs.Space || config.game.bhop == 'autojump' || config.game.bhop == 'autoslide')){
 					cheat.controls.keys[cheat.controls.binds.jumpKey.val] ^= 1;
 					if(cheat.controls.keys[cheat.controls.binds.jumpKey.val])cheat.controls.didPressed[cheat.controls.binds.jumpKey.val] = 1;
 					
-					if((document.activeElement.nodeName != 'INPUT' && config.game.bhop == 'keyslide' && cheat.inputs.Space || config.game.bhop == 'autoslide') && cheat.player[cheat.vars.yVel] < -0.02 && cheat.player.canSlide){
+					if((document.activeElement.nodeName != 'INPUT' && config.game.bhop == 'keyslide' && ui.inputs.Space || config.game.bhop == 'autoslide') && cheat.player[cheat.vars.yVel] < -0.02 && cheat.player.canSlide){
 						setTimeout(() => cheat.controls.keys[cheat.controls.binds.crouchKey.val] = 0, 325);
 						cheat.controls.keys[cheat.controls.binds.crouchKey.val] = 1;
 					}
@@ -431,11 +407,11 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					});
 				}
 				
-				cheat.controls[cheat.vars.pchObjc].rotation.x -= cheat.inputs.ArrowDown ? 0.006 : 0;
-				cheat.controls[cheat.vars.pchObjc].rotation.x += cheat.inputs.ArrowUp ? 0.006 : 0;
+				cheat.controls[cheat.vars.pchObjc].rotation.x -= ui.inputs.ArrowDown ? 0.006 : 0;
+				cheat.controls[cheat.vars.pchObjc].rotation.x += ui.inputs.ArrowUp ? 0.006 : 0;
 				
-				cheat.controls.object.rotation.y -= cheat.inputs.ArrowRight ? 0.00675 : 0;
-				cheat.controls.object.rotation.y += cheat.inputs.ArrowLeft ? 0.00675 : 0;
+				cheat.controls.object.rotation.y -= ui.inputs.ArrowRight ? 0.00675 : 0;
+				cheat.controls.object.rotation.y += ui.inputs.ArrowLeft ? 0.00675 : 0;
 				
 				cheat.game.config.thirdPerson = config.game.thirdperson ? true : false;
 				
@@ -460,7 +436,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
-						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
+						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
@@ -477,7 +453,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 					
 					var normal = ent[add].enemy ? ent[add].canSee : true;
 					
-					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? true : normal;
+					ent[add].inview = ent[add].frustum ? false : cheat.hide_nametags ? false : config.esp.nametags ? true : normal;
 						
 				});
 			}catch(err){ cheat.err('CAUGHT:', err) }},
@@ -946,7 +922,7 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		setInterval(cheat.process_interval, 500);
 		
 		// clear all inputs when window is not focused
-		window.addEventListener('blur', () => cheat.inputs = []);
+		window.addEventListener('blur', () => ui.inputs = []);
 		
 		// load cheat font
 		new FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
@@ -992,852 +968,300 @@ var n = Object.assign(document.documentElement.appendChild(document.createElemen
 		}
 		
 		return ret;
-	}),
-	init_ui = (title, footer, array) => {
-		var div = cheat.rnds.div + '-' + cheat.rnds.div1,
-			base_css = `
-${div} {
-	display: block;
-}
-
-.con {
-	z-index: 9000000;
-	position: absolute;
-	display: flex;
-	width: 400px;
-	height: 370px;
-	background: #112;
-	border: none;
-	flex-direction: column;
-	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-	user-select: none;
-}
-
-.con, .con * {
-	color: #eee;
-	font: 13px Inconsolata, monospace;
-}
-
-.cons {
-	display: flex;
-	flex: 1 1 0;
-}
- 
-.bar {
-	border-top-left-radius: 2px;
-	border-top-right-radius: 2px;
-	-webkit-app-region: drag;
-}
-
-.bar {
-	height: 30px;
-	min-height: 30px;
-	line-height: 28px;
-	text-align: center;
-}
-
-.bar-top {
-	transition: opacity .15s ease-in-out, color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-	border: 2px solid #eee;
-}
-
-.bar-top:hover {
-	border-color: #29F;
-}
-
-.bar-top:active {
-	background: #224;
-}
-
-.main-border {
-	display: flex;
-	flex-direction: column;
-	background: #112;
-	height: 100%;
-	border: 2px solid #eee;
-	border-top: none;
-	border-bottom-left-radius: 3px;
-	border-bottom-right-radius: 3px;
-	overflow: hidden;
-}
-
-.sidebar-con {
-	width: 30%;
-	height: auto;
-	display: block;
-	flex: none;
-	border-right: 2px solid #445;
-	border-bottom: 2px solid #445
-}
-
-.tab-button {
-	height: 36px;
-	line-height: 36px;
-	text-align: center;
-	border-bottom: 2px solid #445;
-	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-}
-
-.tab-button:hover {
-	background: #666;
-}
-
-.tab-button:active {
-	background: #333;
-	box-shadow: -3px -1px 0px 3px #CCC6;
-}
-
-.content-con {
-	flex: 1 1 0;
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-}
-
-.content-con::-webkit-scrollbar {
-	width: 10px;
-}
-
-.content-con::-webkit-scrollbar-thumb {
-	background-color: #EEE;
-}
-
-.content {
-	min-height: 36px;
-	border-bottom: 2px solid #445;
-	display: flex;
-	flex-direction: row
-}
-
-.control-button {
-	width: 36px;
-	text-align: center;
-	line-height: 36px;
-	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-}
-
-.control-button:hover {
-	background: #333;
-	filter: brightness(125%)
-}
-
-.control-button:active {
-	box-shadow: 0px 0px 0px 3px #CCC6;
-}
-
-.control-button.true {
-	background: #2A0;
-}
-
-.control-button.true:active {
-	box-shadow: 0px 0px 0px 3px #2A06;
-}
-
-.control-button.false {
-	background: #A00;
-}
-
-.control-button.false:active {
-	box-shadow: 0px 0px 0px 3px #A006;
-}
-
-.control-textbox {
-	height: 28px;
-	display: block;
-	font: 14px Inconsolata, monospace;
-	padding: 0px .75rem 0px 0px;
-	text-align: right;
-	transition: color .15s ease-in-out,background-color .15s ease-in-out, border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-	border: 1px solid #2B4194;
-	margin: auto 3px;
-	color: black;
-}
-
-.control-textbox:focus {
-	box-shadow: 0px 0px 0px 3px #037;
-}
-
-.control-label {
-	flex: 1 1 0;
-	padding-left: 15px;
-	line-height: 36px;
-	border-left: 2px solid #445;
-}
-
-.control-slider {
-	-webkit-appearance: none;
-	appearance: none;
-	flex: 1 1 0;
-	height: 28px;
-	margin: 4px 0 4px 5px;
-	cursor: w-resize;
-	background: #333
-}
-
-.control-slider:hover {
-	background: #333
-}
-
-.control-slider-bg {
-	background: #2ad;
-	height: 100%
-}
-
-.control-slider:hover .control-slider-bg {
-	background: #4ad
-}
-
-.control-slider::after {
-	position: relative;
-	height: 100%;
-	text-align: center;
-	display: block;
-	line-height: 28px;
-	top: -28px;
-	content: attr(data)
-}
-
-.tab-desc {
-	text-align: center;
-	font-size: 12px;
-	width: 100%;
-	line-height: 34px;
-	height: 34px;
-}
-
-.ver {
-	position: absolute;
-	top: 0px;
-	right: 0px;
-	width: 60px;
-	margin: auto;
-	line-height: 34px;
-	height: 34px;
-	text-align: center;
-}
-
-.log {
-	padding: 4px;
-	user-select: text;
-	border-bottom: 2px solid #445;
-	min-height: 20px;
-	overflow: hidden;
-	line-height: 19px;
-	font-size: 13px;
-	flex: none;
-}
-
-.log-badge {
-	display: inline;
-	background: #FFF;
-	color: black;
-	border-radius: 30%;
-	width: 14px;
-	height: 14px;
-	padding: 2px;
-	margin: auto 5px;
-	text-align: center;
-	font-size: 11px;
-	line-height: 13px;
-	user-select: none;
-}
-
-.log-timestamp::before {
-	content: '[';
-}
-
-.log-timestamp::after {
-	content: ']';
-}
-
-.log-timestamp {
-	display: inline;
-	margin-right: 5px;
-	user-select: none;
-}
-
-.log-text {
-	display: inline;
-}
-
-* {
-	outline: none;
-}
-`;
-		
-		customElements.define(div, class extends HTMLDivElement {}, { extends: 'div' });
-		
-		var con = add_ele(div, document.body, { className: 'con' }),
-			titlebar = add_ele(div, con, { innerHTML: title, className: 'bar bar-top' }),
-			main_border = add_ele(div, con, { className: 'main-border' }),
-			cons = add_ele(div, main_border, { className: 'cons' }),
-			sidebar_con = add_ele(div, cons, { className: 'sidebar-con' }),
-			style = add_ele('link', document.head, { rel: 'stylesheet', href: URL.createObjectURL(new window.Blob([ base_css ], { type: 'text/css' })) }),
-			tab_nodes = [],
-			process_controls = (control, tab, tab_button, tab_ele) => {
-				if(control.type == 'nested_menu'){
-					control.tab_ele = add_ele(div, cons, { className: 'content-con', style: 'display: none' });
-					
-					tab_nodes.push(control.tab_ele);
-					
-					control.val.forEach(controle => process_controls(controle, tab, tab_button, control.tab_ele));
-					
-					if(control.load)control.load(control.tab_ele);
-				}
-				
-				var content = add_ele(div, tab_ele, {
-						className: 'content',
-					}),
-					content_name = document.createElement(div), // append after stuff
-					label_appended = false;
-				
-				control.interact = data => {
-					switch(control.type){
-						case'bool':
-							control.val_set(!control.val_get())
-							break
-						case'bool_rot':
-							control.aval = control.aval + 1
-							if(control.aval >= control.vals.length)control.aval = 0 // past length
-							control.val_set(control.vals[control.aval].val);
-							break
-						case'function':
-							control.val_get()();
-							break
-						case'function_inline':
-							control.val();
-							break
-						case'nested_menu':
-							tab_nodes.forEach(ele => ele.style.display = 'none');
-							control.tab_ele.removeAttribute('style');
-							break
-						case'textbox':
-							control.val_set(control.input.value.substr(0, control.max_length));
-							break
-					}
-					control.update();
-					cheat.sync_config('update');
-				};
-				
-				control.update = () => {
-					if(control.button)control.button.innerHTML = '[' + (control.key == 'unset' ? '-' : control.key) + ']';
-					
-					switch(control.type){
-						case'bool':
-							control.button.className = 'control-button ' + !!control.val_get();
-							break;
-						case'bool_rot':
-							content_name.innerHTML = control.name + ': ' + control.vals[control.aval].display;
-							break;
-						case'text':
-							break;
-						case'text-small':
-							content_name.style.border = 'none';
-							content_name.style['font-size'] = '12px';
-							content_name.style['padding-left'] = '8px';
-							break;
-						case'text-medium':
-							content_name.style.border = 'none';
-							content_name.style['font-size'] = '13px';
-							content_name.style['padding-left'] = '8px';
-							break;
-						case'text-bold':
-							content_name.style.border = 'none';
-							content_name.style['font-weight'] = '600';
-							content_name.style['padding-left'] = '8px';
-							break;
-						case'text-small-bold':
-							content_name.style['font-size'] = '12px';
-							content_name.style['font-weight'] = '600';
-							content_name.style['padding-left'] = '8px';
-							break;
-						case'textbox':
-							control.input.value = ('' + control.val_get()).substr(0, control.max_length);
-							break;
-						case'slider':
-							control.slider_bg.style.width = ((control.val_get() / control.max_val) * 100) + '%'
-							control.slider.setAttribute('data', Number(control.val_get().toString().substr(0, 10)));
-							break;
-					}
-					
-					cheat.sync_config('update');
-				};
-				
-				ui.control_updates.push(control.update);
-				
-				if(control.key){
-					control.button = add_ele(div, content, {
-						className: 'control-button',
-					});
-					control.button.addEventListener('click', control.interact);
-					
-					if(control.key != 'unset')control.button.innerHTML = '[' + control.key + ']'
-					else control.button.innerHTML = '[-]'
-				}
-				
-				
-				switch(control.type){
-					case'textbox':
-						
-						Object.assign(content.appendChild(content_name), {
-							className: 'control-label',
-							innerHTML: control.name,
-						});
-						
-						content_name.style.padding = '0px 10px';
-						content_name.style['border-left'] = 'none';
-						content_name.style['border-right'] = '2px solid #445';
-						
-						control.input = add_ele('input', content, { className: 'control-textbox', placeholder: control.placeholder, spellcheck: false, value: control.val_get() });
-						
-						// .style.display = 'none';
-						label_appended = true;
-						
-						control.input.addEventListener('input', control.interact);
-						
-						break
-					case'slider':
-						var movement = { tb: { value: false, } };
-						
-						movement.sd = { held: false, x: 0, y: 0 };
-						
-						var rtn = (number, unit) => (number / unit).toFixed() * unit,
-							update_slider = event => {
-								if(!movement.sd.held)return;
-								
-								var slider_box = control.slider.getBoundingClientRect(),
-									perc = (event.offsetX / control.slider.offsetWidth * 100).toFixed(2),
-									perc_rounded = rtn(perc, control.unit / 10).toFixed(2),
-									value = ((control.max_val / 100) * perc_rounded).toFixed(2);
-								
-								if(event.clientX <= slider_box.x){
-									value = 0;
-									perc_rounded = 0;
-								}else if(event.clientX >= slider_box.x + slider_box.width){
-									value = control.max_val;
-									perc_rounded = 100;
-								}
-								
-								if(perc_rounded <= 100 && value >= control.min_val){
-									control.val_set(Number(value));
-									control.update();
-									
-									cheat.sync_config('update');
-								}
-							};
-						
-						control.slider = content.appendChild(document.createElement('div'));
-						control.slider_bg = control.slider.appendChild(document.createElement('div'));
-						control.slider.className = 'control-slider'
-						control.slider_bg.className = 'control-slider-bg'
-						
-						control.slider_bg.style.width = control.val_get() / control.max_val * 100 + '%'
-						control.slider.setAttribute('data', control.val_get());
-						
-						control.slider.addEventListener('mousedown', event=>{
-							movement.sd = { held: true, x: event.layerX, y: event.layerY }
-							update_slider(event);
-						});
-						
-						window.addEventListener('mouseup', _=> movement.sd.held = false );
-						
-						window.addEventListener('mousemove', event=> update_slider(event));
-						
-						break
-					case'bool_rot':
-						
-						control.vals.forEach((entry, index) =>{ if(entry.val == control.val_get())control.aval = index })
-						if(!control.aval)control.aval = 0
-						
-						break
-				}
-				
-				if(!label_appended){
-					content.appendChild(content_name);
-					content_name.className = 'control-label'
-					content_name.innerHTML = control.name;
-				}
-				
-				control.update();
-				
-				if(control.key && control.key != 'unset')cheat.keybinds.push({
-					get code(){ return !isNaN(Number(control.key)) ? 'Digit' + control.key : 'Key' + control.key.toUpperCase() },
-					get interact(){ return control.interact; },
-				});
-			},
-			movement = { tb:{ value: false } },
-			align_con = () => (con.style.top = (window.innerHeight / 2) - (con.getBoundingClientRect().height / 2) + 'px', con.style.left = '20px');
-		
-		titlebar.addEventListener('mousedown', event => movement.tb = {
-			value: true,
-			x: event.x - Number(con.style.left.replace(/px$/, '')),
-			y: event.y - Number(con.style.top.replace(/px$/, '')),
-		});
-
-		document.addEventListener('mouseup', _=> movement.tb.value = false);
-
-		document.addEventListener('mousemove', event => {
-			if(movement.tb.value){
-				var x_inside = event.x - movement.tb.x + con.offsetWidth < window.innerWidth,
-					y_inside = event.y - movement.tb.y + con.offsetHeight < window.innerHeight;
-				// check if element will be outside of window
-				if(x_inside && event.x - movement.tb.x >= 0)con.style.left = event.x - movement.tb.x + 'px'
-				if(y_inside && event.y - movement.tb.y >= 0)con.style.top = event.y - movement.tb.y + 'px'
-			}
-		});
-		
-		window.addEventListener('keydown', event => {
-			if(document.activeElement && document.activeElement.tagName == 'INPUT')return;
-			
-			cheat.inputs[event.code] = true;
-			
-			var keybind = cheat.keybinds.find(keybind => typeof keybind.code == 'string'
-					? keybind.code == event.code || keybind.code.replace('Digit', 'Numpad') == event.code
-					: keybind.code.some(keycode => keycode == event.code || keycode.replace('Digit', 'Numpad') == event.code));
-			
-			if(!keybind || event.repeat)return;
-			
-			keybind.interact(event); // call the keybind callback
-		});
-		
-		window.addEventListener('keyup', event => {
-			cheat.inputs[event.code] = false;
-		});
-		
-		cheat.keybinds.push({
-			code: ['KeyC', 'F1'],
-			interact(){
-				event.preventDefault();
-				con.style.display = (values.ui_visible ^= 1) ? 'block' : 'none';
-			},
-		});
-		
-		array.forEach((tab, index) => {
-			var tab_button = add_ele(div, sidebar_con, {
-					className: 'tab-button',
-				}),
-				tab_ele = add_ele(div, cons, {
-					className: 'content-con',
-					style: index > 0 ? 'display:none' : '',
-				});
-			
-			tab_nodes.push(tab_ele);
-			
-			tab_button.addEventListener('click', () => (tab_nodes.forEach(ele => ele.style.display = 'none'), tab_ele.removeAttribute('style')));
-			
-			tab_button.innerHTML = tab.name;
-			
-			if(tab.load)tab.load(tab_ele);
-			
-			tab.contents.forEach(control => { try{
-				process_controls(control, tab, tab_button, tab_ele);
-			}catch(err){ console.error('Encountered error at %c' + control.name + ' (' + control.val + ')', 'color: #FFF', err) }});
-			
-			if(tab.bottom_text){
-				var bottom_text = tab_ele.appendChild(document.createElement('div'));
-				
-				bottom_text.className = 'tab-desc'
-				bottom_text.innerHTML = tab.bottom_text;
-			}
-		});
-		
-		add_ele(div, main_border, { className: 'bar', innerHTML: footer });
-		add_ele(div, titlebar, { className: 'ver', innerHTML: 'v' + values.version });
-		
-		// IMAGINE BEING FUCKING CHROME AND NEEDING TO WAIT A TICK TO GET HEIGHT
-		setTimeout(align_con);
-	};
+	});
 
 values.config = config = JSON.parse(JSON.stringify(values.oconfig));
 
 init();
 inject();
 
-cheat.wf(() => document && document.body).then(() => init_ui('Shitsploit', 'Press [F1] or [C] to toggle menu', [{
-	name: 'Main',
-	contents: [{
-		name: 'Auto aim',
-		type: 'bool_rot',
-		val_get: _ => values.config.aim.status,
-		val_set: v => values.config.aim.status = v,
-		vals: [{
-			val: 'off',
-			display: 'Off',
+require('/libs/sploit/ui.js').then(ui => {
+	ui = ui(values);
+	
+	cheat.wf(() => document && document.body).then(() => ui.init('Shitsploit', 'Press [F1] or [C] to toggle menu', [{
+		name: 'Main',
+		contents: [{
+			name: 'Auto aim',
+			type: 'bool_rot',
+			val_get: _ => values.config.aim.status,
+			val_set: v => values.config.aim.status = v,
+			vals: [{
+				val: 'off',
+				display: 'Off',
+			},{
+				val: 'assist',
+				display: 'Assist',
+			},{
+				val: 'silent',
+				display: 'Silent',
+			},{
+				val: 'full',
+				display: 'Full',
+			}],
+			get key(){ return values.config.kb.aim || values.oconfig.kb.aim; },
 		},{
-			val: 'assist',
-			display: 'Assist',
+			name: 'Auto bhop',
+			type: 'bool_rot',
+			val_get: _ => values.config.game.bhop,
+			val_set: v => values.config.game.bhop = v,
+			vals: [{
+				val: 'off',
+				display: 'Off',
+			},{
+				val: 'keyjump',
+				display: 'Key jump',
+			},{
+				val: 'keyslide',
+				display: 'Key slide',
+			},{
+				val: 'autoslide',
+				display: 'Auto slide',
+			},{
+				val: 'autojump',
+				display: 'Auto jump',
+			}],
+			get key(){ return values.config.kb.bhop || values.oconfig.kb.bhop; },
 		},{
-			val: 'silent',
-			display: 'Silent',
+			name: 'ESP mode',
+			type: 'bool_rot',
+			val_get: _ => values.config.esp.status,
+			val_set: v => values.config.esp.status = v,
+			vals: [{
+				val: 'off',
+				display: 'Off',
+			},{
+				val: 'box',
+				display: 'Box',
+			},{
+				val: 'chams',
+				display: 'Chams',
+			},{
+				val: 'box_chams',
+				display: 'Box & chams',
+			},{
+				val: 'full',
+				display: 'Full',
+			}],
+			get key(){ return values.config.kb.esp || values.oconfig.kb.esp; },
 		},{
-			val: 'full',
-			display: 'Full',
+			name: 'Tracers',
+			type: 'bool',
+			val_get: _ => values.config.esp.tracers,
+			val_set: v => values.config.esp.tracers = v,
+			get key(){ return values.config.kb.tracers || values.oconfig.kb.tracers; },
+		},{
+			name: 'Nametags',
+			type: 'bool',
+			val_get: _ => values.config.esp.nametags,
+			val_set: v => values.config.esp.nametags = v,
+			get key(){ return values.config.kb.nametags || values.oconfig.kb.nametags; },
+		},{
+			name: 'Overlay',
+			type: 'bool',
+			val_get: _ => values.config.game.overlay,
+			val_set: v => values.config.game.overlay = v,
+			get key(){ return values.config.kb.overlay || values.oconfig.kb.overlay; },
 		}],
-		get key(){ return values.config.kb.aim || values.oconfig.kb.aim; },
 	},{
-		name: 'Auto bhop',
-		type: 'bool_rot',
-		val_get: _ => values.config.game.bhop,
-		val_set: v => values.config.game.bhop = v,
-		vals: [{
-			val: 'off',
-			display: 'Off',
+		name: 'Game',
+		contents: [{
+			name: 'You need to be signed in for the skin hack',
+			type: 'text-small',
 		},{
-			val: 'keyjump',
-			display: 'Key jump',
+			name: 'Skins',
+			type: 'bool',
+			val_get: _ => values.config.game.skins,
+			val_set: v => values.config.game.skins = v,
+			key: 'unset',
 		},{
-			val: 'keyslide',
-			display: 'Key slide',
+			name: 'Wireframe',
+			type: 'bool',
+			val_get: _ => values.config.game.wireframe,
+			val_set: v => values.config.game.wireframe = v,
+			key: 'unset',
 		},{
-			val: 'autoslide',
-			display: 'Auto slide',
+			name: 'Auto respawn',
+			type: 'bool',
+			val_get: _ => values.config.game.auto_respawn,
+			val_set: v => values.config.game.auto_respawn = v,
+			key: 'unset',
 		},{
-			val: 'autojump',
-			display: 'Auto jump',
+			name: 'Thirdperson',
+			type: 'bool',
+			val_get: _ => values.config.game.thirdperson,
+			val_set: v => values.config.game.thirdperson = v,
+			key: 'unset',
 		}],
-		get key(){ return values.config.kb.bhop || values.oconfig.kb.bhop; },
 	},{
-		name: 'ESP mode',
-		type: 'bool_rot',
-		val_get: _ => values.config.esp.status,
-		val_set: v => values.config.esp.status = v,
-		vals: [{
-			val: 'off',
-			display: 'Off',
-		},{
-			val: 'box',
-			display: 'Box',
-		},{
-			val: 'chams',
-			display: 'Chams',
-		},{
-			val: 'box_chams',
-			display: 'Box & chams',
-		},{
-			val: 'full',
-			display: 'Full',
-		}],
-		get key(){ return values.config.kb.esp || values.oconfig.kb.esp; },
-	},{
-		name: 'Tracers',
-		type: 'bool',
-		val_get: _ => values.config.esp.tracers,
-		val_set: v => values.config.esp.tracers = v,
-		get key(){ return values.config.kb.tracers || values.oconfig.kb.tracers; },
-	},{
-		name: 'Nametags',
-		type: 'bool',
-		val_get: _ => values.config.esp.nametags,
-		val_set: v => values.config.esp.nametags = v,
-		get key(){ return values.config.kb.nametags || values.oconfig.kb.nametags; },
-	},{
-		name: 'Overlay',
-		type: 'bool',
-		val_get: _ => values.config.game.overlay,
-		val_set: v => values.config.game.overlay = v,
-		get key(){ return values.config.kb.overlay || values.oconfig.kb.overlay; },
-	}],
-},{
-	name: 'Game',
-	contents: [{
-		name: 'You need to be signed in for the skin hack',
-		type: 'text-small',
-	},{
-		name: 'Skins',
-		type: 'bool',
-		val_get: _ => values.config.game.skins,
-		val_set: v => values.config.game.skins = v,
-		key: 'unset',
-	},{
-		name: 'Wireframe',
-		type: 'bool',
-		val_get: _ => values.config.game.wireframe,
-		val_set: v => values.config.game.wireframe = v,
-		key: 'unset',
-	},{
-		name: 'Auto respawn',
-		type: 'bool',
-		val_get: _ => values.config.game.auto_respawn,
-		val_set: v => values.config.game.auto_respawn = v,
-		key: 'unset',
-	},{
-		name: 'Thirdperson',
-		type: 'bool',
-		val_get: _ => values.config.game.thirdperson,
-		val_set: v => values.config.game.thirdperson = v,
-		key: 'unset',
-	}],
-},{
-	name: 'Aim',
-	contents: [{
-		name: 'Target sorting',
-		type: 'bool_rot',
-		val_get: _ => values.config.game.target_sorting,
-		val_set: v => values.config.game.target_sorting = v,
-		vals: [{
-			val: 'dist2d',
-			display: 'Distance (2D)',
-		},{
-			val: 'dist3d',
-			display: 'Distance (3D)',
-		},{
-			val: 'hp',
-			display: 'Health',
-		}],
-		key: 'unset',
-	},{
-		name: 'Smoothness',
-		type: 'slider',
-		val_get: _ => values.config.aim.smoothn,
-		val_set: v => values.config.aim.smoothn = v,
-		min_val: 0,
-		max_val: 50,
-		unit: 10,
-	},{
-		name: 'Smooth',
-		type: 'bool',
-		val_get: _ => values.config.aim.smooth,
-		val_set: v => values.config.aim.smooth = v,
-		key: 'unset',
-	},{
-		name: 'Triggerbot',
-		type: 'bool',
-		val_get: _ => values.config.aim.triggerbot,
-		val_set: v => values.config.aim.triggerbot = v,
-		key: 'unset',
-	},{
-		name: 'Auto reload',
-		type: 'bool',
-		val_get: _ => values.config.aim.auto_reload,
-		val_set: v => values.config.aim.auto_reload = v,
-		key: 'unset',
-	},{
-		name: 'Frustrum check',
-		type: 'bool',
-		val_get: _ => values.config.aim.frustrum_check,
-		val_set: v => values.config.aim.frustrum_check = v,
-		key: 'unset',
-	},{
-		name: 'Wallbangs',
-		type: 'bool',
-		val_get: _ => values.config.aim.wallbangs,
-		val_set: v => values.config.aim.wallbangs = v,
-		key: 'unset',
-	}],
-},{
-	name: 'Esp',
-	contents: [{
-		name: 'Minimap',
-		type: 'bool',
-		val_get: _ => values.config.esp.minimap,
-		val_set: v => values.config.esp.minimap = v,
-		key: 'unset',
-	},{
-		name: 'Health bars',
-		type: 'bool',
-		val_get: _ => values.config.esp.health_bars,
-		val_set: v => values.config.esp.health_bars = v,
-		key: 'unset',
-	},{
-		name: 'Walls',
-		type: 'bool',
-		val_get: _ => values.config.esp.walls,
-		val_set: v => values.config.esp.walls = v,
-		key: 'unset',
-	},{
-		name: 'Wall opacity',
-		type: 'slider',
-		val_get: _ => values.config.esp.wall_opacity,
-		val_set: v => values.config.esp.wall_opacity = v,
-		min_val: 0.1,
-		max_val: 1,
-		unit: 1,
-	}]
-},{
-	name: 'Settings',
-	contents: [{
-		name: 'Join the Discord',
-		type: 'function_inline',
-		key: 'unset',
-		val(){
-			location.href = 'https://vibedivide.github.io/';
-		},
-	}],
-},{
-	name: 'Keybinds',
-	contents: [{
 		name: 'Aim',
-		placeholder: 'Aim keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.aim,
-		val_set: v => (values.config.kb.aim = v, ui.reload()),
+		contents: [{
+			name: 'Target sorting',
+			type: 'bool_rot',
+			val_get: _ => values.config.game.target_sorting,
+			val_set: v => values.config.game.target_sorting = v,
+			vals: [{
+				val: 'dist2d',
+				display: 'Distance (2D)',
+			},{
+				val: 'dist3d',
+				display: 'Distance (3D)',
+			},{
+				val: 'hp',
+				display: 'Health',
+			}],
+			key: 'unset',
+		},{
+			name: 'Smoothness',
+			type: 'slider',
+			val_get: _ => values.config.aim.smoothn,
+			val_set: v => values.config.aim.smoothn = v,
+			min_val: 0,
+			max_val: 50,
+			unit: 10,
+		},{
+			name: 'Smooth',
+			type: 'bool',
+			val_get: _ => values.config.aim.smooth,
+			val_set: v => values.config.aim.smooth = v,
+			key: 'unset',
+		},{
+			name: 'Triggerbot',
+			type: 'bool',
+			val_get: _ => values.config.aim.triggerbot,
+			val_set: v => values.config.aim.triggerbot = v,
+			key: 'unset',
+		},{
+			name: 'Auto reload',
+			type: 'bool',
+			val_get: _ => values.config.aim.auto_reload,
+			val_set: v => values.config.aim.auto_reload = v,
+			key: 'unset',
+		},{
+			name: 'Frustrum check',
+			type: 'bool',
+			val_get: _ => values.config.aim.frustrum_check,
+			val_set: v => values.config.aim.frustrum_check = v,
+			key: 'unset',
+		},{
+			name: 'Wallbangs',
+			type: 'bool',
+			val_get: _ => values.config.aim.wallbangs,
+			val_set: v => values.config.aim.wallbangs = v,
+			key: 'unset',
+		}],
 	},{
-		name: 'Bhop',
-		placeholder: 'Bhop keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.bhop,
-		val_set: v => (values.config.kb.bhop = v, ui.reload()),
+		name: 'Esp',
+		contents: [{
+			name: 'Minimap',
+			type: 'bool',
+			val_get: _ => values.config.esp.minimap,
+			val_set: v => values.config.esp.minimap = v,
+			key: 'unset',
+		},{
+			name: 'Health bars',
+			type: 'bool',
+			val_get: _ => values.config.esp.health_bars,
+			val_set: v => values.config.esp.health_bars = v,
+			key: 'unset',
+		},{
+			name: 'Walls',
+			type: 'bool',
+			val_get: _ => values.config.esp.walls,
+			val_set: v => values.config.esp.walls = v,
+			key: 'unset',
+		},{
+			name: 'Wall opacity',
+			type: 'slider',
+			val_get: _ => values.config.esp.wall_opacity,
+			val_set: v => values.config.esp.wall_opacity = v,
+			min_val: 0.1,
+			max_val: 1,
+			unit: 1,
+		}]
 	},{
-		name: 'ESP',
-		placeholder: 'ESP keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.esp,
-		val_set: v => (values.config.kb.esp = v, ui.reload()),
+		name: 'Settings',
+		contents: [{
+			name: 'Join the Discord',
+			type: 'function_inline',
+			key: 'unset',
+			val(){
+				location.href = 'https://vibedivide.github.io/';
+			},
+		}],
 	},{
-		name: 'Tracers',
-		placeholder: 'Tracers keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.tracers,
-		val_set: v => (values.config.kb.tracers = v, ui.reload()),
-	},{
-		name: 'Overlay',
-		placeholder: 'Overlay keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.overlay,
-		val_set: v => (values.config.kb.overlay = v, ui.reload()),
-	},{
-		name: 'ASAP toggle',
-		placeholder: 'ASAP toggle keybind',
-		type: 'textbox',
-		max_length: 1,
-		val_get: _ => values.config.kb.disable_settings,
-		val_set: v => (values.config.kb.disable_settings = v, ui.reload()),
-	},{
-		name: 'ASAP toggle',
-		type: 'function_inline',
-		val(){
-			values.config.aim.status = values.oconfig.aim.status;
-			values.config.game.bhop = values.oconfig.game.bhop;
-			values.config.esp.status = values.oconfig.esp.status;
-			values.config.esp.tracers = values.oconfig.esp.tracers;
-			values.config.esp.nametags = values.oconfig.esp.nametags;
-			values.config.esp.minimap = values.oconfig.esp.minimap;
-			values.config.esp.walls = values.oconfig.esp.walls;
-			values.config.esp.health_bars = values.oconfig.esp.health_bars;
-			values.config.game.overlay = values.oconfig.game.overlay;
-			values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
-			values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
-			
-			cheat.sync_config('update');
-			
-			// Object.entries(values.config).forEach(([ key, val ]) => Object.entries(val).forEach(([ sub_key, sub_val ]) => ['string', 'boolean'].includes(typeof sub_val) && (values.config[key][sub_key] = values.oconfig[key][sub_key])));
-			
-			ui.reload();
-		},
-		get key(){ return values.config.kb.disable_settings || values.oconfig.kb.disable_settings; },
-	},{
-		name: 'Reset settings',
-		type: 'function_inline',
-		val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload(), cheat.sync_config('update')),
-		key: 'unset',
-	}],
-}]));
+		name: 'Keybinds',
+		contents: [{
+			name: 'Aim',
+			placeholder: 'Aim keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.aim,
+			val_set: v => (values.config.kb.aim = v, ui.reload()),
+		},{
+			name: 'Bhop',
+			placeholder: 'Bhop keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.bhop,
+			val_set: v => (values.config.kb.bhop = v, ui.reload()),
+		},{
+			name: 'ESP',
+			placeholder: 'ESP keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.esp,
+			val_set: v => (values.config.kb.esp = v, ui.reload()),
+		},{
+			name: 'Tracers',
+			placeholder: 'Tracers keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.tracers,
+			val_set: v => (values.config.kb.tracers = v, ui.reload()),
+		},{
+			name: 'Overlay',
+			placeholder: 'Overlay keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.overlay,
+			val_set: v => (values.config.kb.overlay = v, ui.reload()),
+		},{
+			name: 'ASAP toggle',
+			placeholder: 'ASAP toggle keybind',
+			type: 'textbox',
+			max_length: 1,
+			val_get: _ => values.config.kb.disable_settings,
+			val_set: v => (values.config.kb.disable_settings = v, ui.reload()),
+		},{
+			name: 'ASAP toggle',
+			type: 'function_inline',
+			val(){
+				values.config.aim.status = values.oconfig.aim.status;
+				values.config.game.bhop = values.oconfig.game.bhop;
+				values.config.esp.status = values.oconfig.esp.status;
+				values.config.esp.tracers = values.oconfig.esp.tracers;
+				values.config.esp.nametags = values.oconfig.esp.nametags;
+				values.config.esp.minimap = values.oconfig.esp.minimap;
+				values.config.esp.walls = values.oconfig.esp.walls;
+				values.config.esp.health_bars = values.oconfig.esp.health_bars;
+				values.config.game.overlay = values.oconfig.game.overlay;
+				values.config.aim.triggerbot = values.oconfig.aim.triggerbot;
+				values.config.aim.auto_reload = values.oconfig.aim.auto_reload;
+				
+				ui.sync_config('update');
+				
+				ui.reload();
+			},
+			get key(){ return values.config.kb.disable_settings || values.oconfig.kb.disable_settings; },
+		},{
+			name: 'Reset settings',
+			type: 'function_inline',
+			val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload(), ui.sync_config('update')),
+			key: 'unset',
+		}],
+	}]));
 
-cheat.sync_config('load');
+	ui.sync_config('load');
+});
 
 })();
