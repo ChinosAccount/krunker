@@ -12,6 +12,11 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 		
 		resolve(args.exports);
 	}).catch(reject)),
+	ui = {
+		inputs: [],
+		keybinds: [],
+		sync_config(){},
+	},
 	n = Object.assign(document.documentElement.appendChild(document.createElement('iframe')), {
 		style: 'display:none',
 	}).contentWindow,
@@ -45,9 +50,6 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 				triggerbot: false,
 				smooth: false,
 				smoothn: 25,
-			}, client: {
-				unlimited_fps: true,
-				adblock: true,
 			}, kb: { // keybinds
 				aim: 3,
 				bhop: 4,
@@ -451,9 +453,9 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 					// we are at fastest tick so we can do this
 					if(ent[add].obj)ent[add].obj.visible = true;
 					
-					var normal = ent[add].enemy ? ent[add].canSee : true;
+					var normal = ent[add].inview;
 					
-					ent[add].inview = ent[add].frustum ? false : cheat.hide_nametags ? false : config.esp.nametags ? true : normal;
+					ent[add].inview = cheat.hide_nametags ? false : config.esp.nametags ? true : normal;
 						
 				});
 			}catch(err){ cheat.err('CAUGHT:', err) }},
@@ -921,9 +923,6 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 		
 		setInterval(cheat.process_interval, 500);
 		
-		// clear all inputs when window is not focused
-		window.addEventListener('blur', () => ui.inputs = []);
-		
 		// load cheat font
 		new FontFace('Inconsolata', 'url("https://fonts.gstatic.com/s/inconsolata/v20/QldgNThLqRwH-OJ1UHjlKENVzkWGVkL3GZQmAwLYxYWI2qfdm7Lpp4U8WR32lw.woff2")', {
 			family: 'Inconsolata',
@@ -975,8 +974,8 @@ values.config = config = JSON.parse(JSON.stringify(values.oconfig));
 init();
 inject();
 
-require('/libs/sploit/ui.js').then(ui => {
-	ui = ui(values);
+require('/libs/sploit/ui.js').then(uie => {
+	ui = uie(values);
 	
 	cheat.wf(() => document && document.body).then(() => ui.init('Shitsploit', 'Press [F1] or [C] to toggle menu', [{
 		name: 'Main',
@@ -1187,52 +1186,7 @@ require('/libs/sploit/ui.js').then(ui => {
 			val(){
 				location.href = 'https://vibedivide.github.io/';
 			},
-		}],
-	},{
-		name: 'Keybinds',
-		contents: [{
-			name: 'Aim',
-			placeholder: 'Aim keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.aim,
-			val_set: v => (values.config.kb.aim = v, ui.reload()),
-		},{
-			name: 'Bhop',
-			placeholder: 'Bhop keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.bhop,
-			val_set: v => (values.config.kb.bhop = v, ui.reload()),
-		},{
-			name: 'ESP',
-			placeholder: 'ESP keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.esp,
-			val_set: v => (values.config.kb.esp = v, ui.reload()),
-		},{
-			name: 'Tracers',
-			placeholder: 'Tracers keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.tracers,
-			val_set: v => (values.config.kb.tracers = v, ui.reload()),
-		},{
-			name: 'Overlay',
-			placeholder: 'Overlay keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.overlay,
-			val_set: v => (values.config.kb.overlay = v, ui.reload()),
-		},{
-			name: 'ASAP toggle',
-			placeholder: 'ASAP toggle keybind',
-			type: 'textbox',
-			max_length: 1,
-			val_get: _ => values.config.kb.disable_settings,
-			val_set: v => (values.config.kb.disable_settings = v, ui.reload()),
-		},{
+		}/*,{
 			name: 'ASAP toggle',
 			type: 'function_inline',
 			val(){
@@ -1253,7 +1207,7 @@ require('/libs/sploit/ui.js').then(ui => {
 				ui.reload();
 			},
 			get key(){ return values.config.kb.disable_settings || values.oconfig.kb.disable_settings; },
-		},{
+		}*/,{
 			name: 'Reset settings',
 			type: 'function_inline',
 			val: _ => (values.config = Object.assign({}, values.oconfig), ui.reload(), ui.sync_config('update')),

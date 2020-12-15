@@ -591,6 +591,9 @@ outline: none;
 		ui.add_ele(div, main_border, { className: 'bar', innerHTML: footer });
 		ui.add_ele(div, titlebar, { className: 'ver', innerHTML: 'v' + values.version });
 		
+		// clear all inputs when window is not focused
+		window.addEventListener('blur', () => ui.inputs = []);
+		
 		setTimeout(align_con);
 	},
 });
