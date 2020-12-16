@@ -189,7 +189,7 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 					for(var ind in cheat.game.map.manager.objects){
 						var obj = cheat.game.map.manager.objects[ind];
 						
-						if(!obj.noShoot && obj.active && (config.aim.wallbangs ? !obj.penetrable : !obj.transparent && cheat.player.weapon.pierce)){	
+						if(!obj.noShoot && obj.active && (cheat.player.weapon && cheat.player.weapon.pierce && config.aim.wallbangs ? !obj.penetrable : !obj.transparent)){	
 
 							var in_rect = cheat.util.lineInRect(player.x, player.z, height, ad, ae, af, obj.x - Math.max(0, obj.width - offset), obj.z - Math.max(0, obj.length - offset), obj.y - Math.max(0, obj.height - offset), obj.x + Math.max(0, obj.width - offset), obj.z + Math.max(0, obj.length - offset), obj.y + Math.max(0, obj.height - offset));
 							
@@ -438,7 +438,8 @@ var require = mod => new Promise((resolve, reject) => fetch(mod).then(res => res
 						get max_health(){ return ent[cheat.vars.maxHealth] },
 						get pos2D(){ return ent.x != null ? cheat.wrld2scrn(ent[add].pos) : { x: 0, y: 0 } },
 						get canSee(){ return ent[add].active && cheat.util.canSee(cheat.player, ent) == null ? true : false; },
-						get frustum(){ return ent[add].active && cheat.util.containsPoint(cheat.world.frustum, ent[add].pos); },
+						// cheat.util.containsPoint(cheat.world.frustum, ent[add].pos);
+						get frustum(){ return ent[add].active && cheat.world.frustum.containsPoint(ent[add].pos); },
 						get active(){ return ent.x != null && cheat.ctx && ent[add].obj && ent.health > 0 },
 						get enemy(){ return !ent.team || ent.team != cheat.player.team },
 						get did_shoot(){ return ent[cheat.vars.didShoot] },
